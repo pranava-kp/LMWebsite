@@ -181,6 +181,15 @@ exports.updateDisplayPicture = async (req, res) => {
             1000,
             1000
         );
+        //Creating new File schema
+        const file = new File({
+            publicId: image.public_id,
+            url: image.secure_url,
+            user: userId,
+        });
+        await file.save();
+
+        //Updating User Profile with new image
         const updatedProfile = await User.findByIdAndUpdate(
             { _id: userId },
             { image: image.secure_url },
