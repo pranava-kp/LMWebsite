@@ -1,7 +1,7 @@
-const fileschema=require('../model/fileupload');
-
+const File=require('../model/file');
 const coludinary=require('cloudinary').v2;
-exports. Localfileupload=async(req,res)=>{
+
+exports. LocalFileUpload=async(req,res)=>{
     try{
         //fetch the file
         const file=req.files.file;
@@ -24,7 +24,7 @@ exports. Localfileupload=async(req,res)=>{
         })
     }
 }
-async function cloudinaryconnect(file,foldername)
+async function cloudinaryConnect(file,foldername)
 {
     const options={foldername}
    return  coludinary.uploader.upload(file.tempFilePath,options);
@@ -33,7 +33,7 @@ function iscorrect(filetype,filesupport)
 {
     return filesupport.includes(filetype);
 }
-exports.imageupload=async(req,res)=>{
+exports.imageUpload=async(req,res)=>{
 
     try{
         //fetch the image data from the request body
@@ -51,11 +51,11 @@ exports.imageupload=async(req,res)=>{
              })
         }
         //upload the file to cloudinary
-        const response=await cloudinaryconnect(file,'anubhav');
+        const response=await cloudinaryConnect(file,'anubhav');
         console.log("response print");
         console.log(response);
         //save the file data to the database
-        const filedata=new fileschema({
+        const filedata=new File({
             name:name,
             description:description,
             email:email,
@@ -80,11 +80,9 @@ exports.imageupload=async(req,res)=>{
     }
 }
 
-exports.getallfiles=async(req,res)=>{
-
+exports.getAllFiles = async(req,res)=>{
     try{
-        const allfiles=await fileschema.find({})
-
+        const allfiles = await File.find({})
         return res.status(200).json({
             message:"All files",
             success: true,
@@ -99,29 +97,15 @@ exports.getallfiles=async(req,res)=>{
         })
     }
 }
-exports.countincrease=async(req,res)=>{
 
-    try{
-            //fetch the details
-            const{id}= req.body;
-            console.log(id);
-            const response=await fileschema.updateOne({_id:id},{$inc:{count:1}});
-            console.log(response);
-
-           
-            return res.status(200).json({
-                message:"count updated sucessffuly",
-                success:true,
-                data:response
-            })
-
-    
-    }
-    catch(err)
-    {
-        return res.status(500).json({
-            message:"internal server problem",
-            error:err
-        })
-    }
+exports.deleteFile = async(req,res)=>{
+    const {publicIdToDelete} = req.body;
+    cloudinary.uploader.destroy(publicIdToDelete, (error, result) => {
+        if (error) {
+          console.error(error);
+        } else {
+          console.log(result);
+          console.log('File deleted successfully');
+        }
+      });
 }

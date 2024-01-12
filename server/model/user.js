@@ -1,22 +1,42 @@
-const e = require("express");
 const mongoose = require("mongoose");
 
-const signupschema = new mongoose.Schema({
-    firstName: {
-        type: String,
-        required: true,
+const userSchema = new mongoose.Schema(
+    {
+        firstName: {
+            type: String,
+            required: true,
+        },
+        lastName: {
+            type: String,
+            required: true,
+        },
+        email: {
+            type: String,
+            required: true,
+        },
+        password: {
+            type: String,
+            required: true,
+        },
+        additionalDetails: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Profile",
+        },
+        accountType: {
+            type: String,
+            enum: ["Admin", "Staff", "HOD", "Principal"],
+        },
+        image: {
+            type: String,
+            required: true,
+        },
+        token: {
+            type: String,
+        },
+        expiryTime: {
+            type: Date,
+        },
     },
-    lastName: {
-        type: String,
-        required: true,
-    },
-    email: {
-        type: String,
-        required: true,
-    },
-    password: {
-        type: String,
-        required: true,
-    },
-});
-module.exports = mongoose.model("signup", signupschema);
+    { timestamps: true }
+);
+module.exports = mongoose.model("User", userSchema);
