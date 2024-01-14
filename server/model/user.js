@@ -26,10 +26,10 @@ const userSchema = new mongoose.Schema(
             type: String,
             enum: ["Admin", "Staff", "HOD", "Principal"],
         },
-        image: {
-            type: String,
-            required: true,
-        },
+        // image: {
+        //     type: String,
+        //     required: true,
+        // },
         token: {
             type: String,
         },

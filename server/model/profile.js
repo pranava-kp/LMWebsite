@@ -10,13 +10,17 @@ const profileSchema = new mongoose.Schema({
     },
     gender:{
         type: String,
-        enum: ["Male", "Female"],
-        default: null
     },
     department:{
         type: mongoose.Schema.Types.ObjectId,
         ref: "Department",
     },
+    leaves:[
+        {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Leave",
+        }
+    ],
 })
 
 module.exports = mongoose.model("Profile", profileSchema);

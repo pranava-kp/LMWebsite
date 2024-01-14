@@ -1,7 +1,7 @@
 const File=require('../model/file');
 const coludinary=require('cloudinary').v2;
 
-exports. LocalFileUpload=async(req,res)=>{
+exports.LocalFileUpload=async(req,res)=>{
     try{
         //fetch the file
         const file=req.files.file;
