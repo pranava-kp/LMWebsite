@@ -1,4 +1,5 @@
 const jwt = require("jsonwebtoken");
+const User = require("../model/user");
 require("dotenv").config();
 
 exports.auth = async (req, res, next) => {
@@ -14,7 +15,6 @@ exports.auth = async (req, res, next) => {
         try {
             const response = jwt.verify(token, process.env.JWT_TOKEN);
             console.log(response);
-
             req.user = response;
         } catch (error) {
             res.status(500).json({
@@ -27,7 +27,7 @@ exports.auth = async (req, res, next) => {
         return res.status(401).json({
             success: false,
             message: "Something went wrong while validating token",
-            error: err.message
+            error: err.message,
         });
     }
 };
@@ -35,10 +35,10 @@ exports.auth = async (req, res, next) => {
 //isStaff
 exports.isStaff = async (req, res, next) => {
     try {
-        if (req.user.accountType !== "Student") {
+        if (req.user.accountType !== "Staff") {
             return res.status(401).json({
                 success: false,
-                message: "This is a protected route for students",
+                message: "This is a protected route for Staff",
             });
         }
         next();
@@ -53,10 +53,10 @@ exports.isStaff = async (req, res, next) => {
 //isInstructor
 exports.isHead = async (req, res, next) => {
     try {
-        if (req.user.accountType !== "Instructor") {
+        if (req.user.accountType !== "Head") {
             return res.status(401).json({
                 success: false,
-                message: "This is a protected route for instructor",
+                message: "This is a protected route for Head",
             });
         }
         next();
@@ -74,10 +74,10 @@ exports.isAdmin = async (req, res, next) => {
         if (req.user.accountType !== "Admin") {
             return res.status(401).json({
                 success: false,
-                message: "This is a protected route for admin",
+                message: "This is a protected route for Admin",
             });
         }
-        next()
+        next();
     } catch (err) {
         return res.status(400).json({
             success: false,

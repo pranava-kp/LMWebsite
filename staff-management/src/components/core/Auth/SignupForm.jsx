@@ -3,7 +3,7 @@ import { toast } from "react-hot-toast";
 import { AiOutlineEye, AiOutlineEyeInvisible } from "react-icons/ai";
 import { useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
-import { signUp } from "../../../services/operations/auth";
+import { signUp } from "../../../services/operations/authAPI";
 
 function SignupForm() {
     const navigate = useNavigate();

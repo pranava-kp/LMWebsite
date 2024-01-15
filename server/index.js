@@ -3,10 +3,15 @@ const {conectDB}=require('./config/database');
 const {cloudinaryConfig}=require('./config/cloudinary');
 const fileUpload=require('express-fileupload');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
+
 
 const app=express();
 require("dotenv").config();
 const port=process.env.port || 5000;
+
+// Use the cookie-parser middleware
+app.use(cookieParser());
 
 //port listening
 app.listen(port,()=>{

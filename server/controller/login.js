@@ -15,6 +15,7 @@ exports.login = async (req, res) => {
         const playload = {
             email: response.email,
             id: response._id,
+            accountType: response.accountType,
         };
         if (await bcrypt.compare(password, response.password)) {
             const token = jwt.sign(playload, process.env.JWT_TOKEN, {

@@ -1,12 +1,31 @@
 const Leave = require("../model/leave");
 const User = require("../model/user");
 const Profile = require("../model/profile");
+const moment = require("moment");
 
 exports.createLeave = async (req, res) => {
     try {
-        const { category, subject, body, startDate, endDate } = req.body;
+        const { category, subject, body } = req.body;
+        const startDate = moment(req.body.startDate, "DD-MMM-YYYY");
+        const endDate = moment(req.body.endDate, "DD-MMM-YYYY");
+        if (!category || !subject || !body || !startDate || !endDate) {
+            return res.status(400).json({
+                success: false,
+                message: "All fields are required",
+            });
+        }
+        if (
+            !startDate.isValid() ||
+            !endDate.isValid() ||
+            startDate.isAfter(endDate)
+        ) {
+            return res
+                .status(400)
+                .json({ success: false, message: "Invalid leave period." });
+        }
         const user = req.user;
-        console.log(user);
+        // console.log(user);
+
         // Checking if leave count is available at the backend
         const profile = await User.findById(user.id).populate({
             path: "additionalDetails",
@@ -16,43 +35,36 @@ exports.createLeave = async (req, res) => {
         });
         const additionalDetails = profile.additionalDetails;
         console.log("additionalDetails: ", additionalDetails);
-        // Aggregate the total leave duration using MongoDB aggregation framework
-        const result = await additionalDetails.aggregate([
-            {
-                $project: {
-                    totalLeaveDuration: {
-                        $reduce: {
-                            input: "$leaves",
-                            initialValue: 0,
-                            in: {
-                                $add: [
-                                    "$$value",
-                                    {
-                                        $add: [
-                                            {
-                                                $divide: [
-                                                    {
-                                                        $subtract: [
-                                                            "$$this.endDate",
-                                                            "$$this.startDate",
-                                                        ],
-                                                    },
-                                                    86400000,
-                                                ],
-                                            }, // Convert milliseconds to days
-                                            1, // Including the end date
-                                        ],
-                                    },
-                                ],
-                            },
-                        },
-                    },
-                },
+
+        //Calculating the no. of leaves user already taken
+        const totalDaysTaken = additionalDetails.leaves.reduce(
+            (total, leave) => {
+                const leaveDuration =
+                    Math.ceil(
+                        (leave.endDate - leave.startDate) /
+                            (1000 * 60 * 60 * 24)
+                    ) + 1;
+                return total + leaveDuration;
             },
-        ]);
-        console.log("result: ", result);
-        // const leaveDaysTaken = result[0] ? result[0].totalLeaveDuration : 0;
-        const leaveDaysTaken = 0;
+            0
+        );
+        console.log("total leaves user already took: ", totalDaysTaken);
+        console.log("startDate: ", startDate);
+        console.log("endDate: ", endDate);
+        const dateDifferenceInDays = endDate.diff(startDate, "days") + 1;
+        console.log(
+            "dateDifferenceInDays for current leave duration user is asking for: ",
+            dateDifferenceInDays
+        );
+
+        if (dateDifferenceInDays > 12 - totalDaysTaken) {
+            return res.status(400).json({
+                success: false,
+                message: "Leave duration cannot be more than left leaves",
+            });
+        }
+
+        // After checking all the conditions, create the leave
         const leave = await Leave.create({
             user: user.id,
             category,
@@ -61,25 +73,7 @@ exports.createLeave = async (req, res) => {
             startDate,
             endDate,
         });
-        if (!startDate || !endDate) {
-            return res
-                .status(400)
-                .json({ success: false, message: "Invalid date format." });
-        }
-        if (startDate > endDate) {
-            return res
-                .status(400)
-                .json({ success: false, message: "Invalid date range." });
-        }
-        const dateDifferenceInDays = Math.floor(
-            (endDate - startDate) / (1000 * 60 * 60 * 24)
-        );
-        if (dateDifferenceInDays > 12 - leaveDaysTaken) {
-            return res.status(400).json({
-                success: false,
-                message: "Leave duration cannot be more than left leaves",
-            });
-        }
+        // Push the leave to the user's profile
         await Profile.findByIdAndUpdate(
             additionalDetails._id,
             {
@@ -90,26 +84,42 @@ exports.createLeave = async (req, res) => {
             { new: true }
         );
         return res.status(200).json({
-            message: "Leave created successfully",
+            message: `Leave created successfully for ${dateDifferenceInDays} days`,
+            success: true,
         });
     } catch (err) {
         return res.status(500).json({
             message: "Internal server error",
+            error: err.message,
+            success: false,
         });
     }
 };
 
-exports.getAllLeaves = async (req, res) => {
+exports.getAllUserLeaves = async (req, res) => {
     try {
         const user = req.user;
-        const leaves = await Leave.find({ user: user._id });
+        console.log("User id: ", user.id);
+        const leaves = await Leave.find({ user: user.id });
+        const totalLeavesTaken = leaves.reduce((total, leave) => {
+            const leaveDuration =
+                Math.ceil(
+                    (leave.endDate - leave.startDate) / (1000 * 60 * 60 * 24)
+                ) + 1;
+            return total + leaveDuration;
+        }, 0);
         return res.status(200).json({
             message: "All leaves fetched successfully",
-            leaves,
+            data: {
+                leaves,
+                totalLeavesTaken,
+            },
+            success: true,
         });
     } catch (err) {
         return res.status(500).json({
             message: "Internal server error",
+            success: false,
         });
     }
 };
