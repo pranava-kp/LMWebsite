@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import { getAllUserLeaves } from "../../../../services/operations/leaveAPI";
+import LeaveCard from "./LeaveCard";
 
 const Staff = () => {
     const { token } = useSelector((state) => state.auth);
@@ -29,10 +30,10 @@ const Staff = () => {
     return (
         <div className="flex flex-col md:flex-row gap-5 w-full">
             <div className=" w-full">
-                <p className=" w-full text-end">Leaves Taken: {leavesData? leavesData.totalLeavesTaken : 0}</p>
+                <p className=" w-full text-end">Total leaves Taken: {leavesData? leavesData.totalLeavesTaken : 0}</p>
                 {
                   leavesData &&
-                  leavesData.map((leave) => {
+                  leavesData.leaves.map((leave) => {
                     return(
                       // LEAVE KE CARD BNAANE HAI ACCORDINGLY
                       // SAARE VARIETY KE LIYE, 
