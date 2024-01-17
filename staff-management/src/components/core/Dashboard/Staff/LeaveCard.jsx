@@ -4,7 +4,7 @@ const LeaveCard = ({ leave }) => {
     console.log("leave: ", leave);
     leave.status = "Pending";
     return (
-        <div className={`w-[300px] border p-4 flex flex-col gap-4 rounded-md`}>
+        <div className={`w-[300px] border p-4 flex flex-col gap-3 rounded-md`}>
             <div className=" text-lg font-bold">{leave.subject}</div>
             <div className=" font-semibold">
                 Status:{" "}

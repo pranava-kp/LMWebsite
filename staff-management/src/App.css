@@ -1,3 +1,7 @@
+*{
+  font-family: 'Poppins', sans-serif;
+}
+
 .patternBackground{
     background-image: url(../src/assets/images/pattern.svg);
 }
@@ -27,4 +31,9 @@
   100% {
     transform: rotate(360deg);
   }
+}
+
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  background-image: url('./assets//images//calendarIcon.svg');
 }

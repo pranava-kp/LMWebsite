@@ -8,7 +8,7 @@ const leaveSchema = new mongoose.Schema({
     },
     category: {
         type: String,
-        // enum: ["Emergency Leave", "Casual Leave", "other"],
+        // enum: ["Emergency Leave", "Casual Leave", "Other"],
         required: true,
     },
     subject: {

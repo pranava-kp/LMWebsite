@@ -27,11 +27,7 @@ function LoginForm() {
         e.preventDefault();
         dispatch(login(email, password, navigate));
     };
-
-    //TO DELETE
-    // const email = "tanishq@gmail.com"
-    // const password = "12345"
-
+    
     return (
         <form
             onSubmit={handleOnSubmit}
