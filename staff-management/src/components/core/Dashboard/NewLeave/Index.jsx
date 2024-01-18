@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import rnsLogo from "../../../../assets/images/rns-logo.webp";
 
 const NewLeave = () => {
+    const [formData, setFormData] = useState({});
     return (
         <div className="flex flex-col border p-5 bg-gray-100 gap-8 w-full rounded-md">
             <div className="flex justify-between text-3xl font-semibold">
