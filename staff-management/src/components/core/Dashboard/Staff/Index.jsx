@@ -35,7 +35,7 @@ const Staff = () => {
                 <div className=" flex justify-between items-center">
                     <Link
                         to="/dashboard/new-leave"
-                        className="border w-[135px] p-2 bg-rnsit-blue text-gray-100 font-semibold flex items-center rounded-md gap-1"
+                        className="border w-[145px] p-2 bg-rnsit-blue text-gray-100 font-semibold flex items-center rounded-md gap-1"
                     >
                         New Leave
                         <IoMdAdd className=" text-xl font-bold" />

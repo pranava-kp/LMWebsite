@@ -6,8 +6,8 @@ const moment = require("moment");
 exports.createLeave = async (req, res) => {
     try {
         const { category, subject, body } = req.body;
-        const startDate = moment(req.body.startDate, "DD-MMM-YYYY");
-        const endDate = moment(req.body.endDate, "DD-MMM-YYYY");
+        const startDate = moment(req.body.startDate, "YYYY-MM-DD");
+        const endDate = moment(req.body.endDate, "YYYY-MM-DD");
         if (!category || !subject || !body || !startDate || !endDate) {
             return res.status(400).json({
                 success: false,

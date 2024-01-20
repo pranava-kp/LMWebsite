@@ -1,8 +1,41 @@
 import React, { useState } from "react";
+import { useSelector, useDispatch } from "react-redux";
 import rnsLogo from "../../../../assets/images/rns-logo.webp";
+import { createLeave } from "../../../../services/operations/leaveAPI";
+import toast from "react-hot-toast";
 
 const NewLeave = () => {
-    const [formData, setFormData] = useState({});
+    const { token } = useSelector((state) => state.auth);
+    const [loading, setLoading] = useState(false);
+    const dispatch = useDispatch();
+    const [formData, setFormData] = useState({
+        subject: "",
+        body: "",
+        startDate: null,
+        endDate: null,
+        category: "",
+    });
+
+    const handleOnChange = (e) => {
+        setFormData((prevData) => ({
+            ...prevData,
+            [e.target.name]: e.target.value,
+        }));
+    };
+    const { subject, body, startDate, endDate, category } = formData;
+    const handleOnSubmit = (e) => {
+        e.preventDefault();
+        console.log("form data:", formData);
+        setLoading(true);
+        try{
+            dispatch(createLeave(category, subject, body, startDate, endDate, token))
+        }
+        catch(e){
+            console.log("Error in creating leave: ", e)
+        }
+        setLoading(false);
+    };
+
     return (
         <div className="flex flex-col border p-5 bg-gray-100 gap-8 w-full rounded-md">
             <div className="flex justify-between text-3xl font-semibold">
@@ -10,7 +43,7 @@ const NewLeave = () => {
                 Leave Application
                 <div></div>
             </div>
-            <form className=" flex flex-col gap-4">
+            <form onSubmit={handleOnSubmit} className=" flex flex-col gap-4">
                 <div className="flex flex-col gap-1">
                     <label
                         htmlFor="subject"
@@ -24,6 +57,7 @@ const NewLeave = () => {
                         id="subject"
                         placeholder="Enter Subject"
                         className=" bg-white px-4 py-2 rounded"
+                        onChange={handleOnChange}
                     />
                 </div>
                 <div className="flex flex-col gap-1">
@@ -34,6 +68,7 @@ const NewLeave = () => {
                         Message<sup className=" text-pink-500"> *</sup>
                     </label>
                     <textarea
+                    onChange={handleOnChange}
                         name="body"
                         id="body"
                         cols="40"
@@ -56,6 +91,7 @@ const NewLeave = () => {
                                 name="startDate"
                                 id="startDate"
                                 className=" max-w-max bg-transparent border text-gray-600 text-sm border-gray-200"
+                                onChange={handleOnChange}
                             />
                         </div>
                         <div className="flex flex-col">
@@ -70,22 +106,25 @@ const NewLeave = () => {
                                 name="endDate"
                                 id="endDate"
                                 className=" max-w-max bg-transparent border text-gray-600 text-sm border-gray-200 custom-inpt"
+                                onChange={handleOnChange}
                             />
                         </div>
                     </div>
                     <div>
                         <label
-                            htmlFor="leaveType"
+                            htmlFor="category"
                             className=" text-sm font-semibold uppercase"
                         >
                             Leave Type<sup className=" text-pink-500">*</sup>:{" "}
                         </label>
                         <select
-                            name="leaveType"
-                            id="leaveType"
+                            name="category"
+                            id="category"
                             className=" border border-gray-200 px-2 py-1"
+                            onChange={handleOnChange}
+                            defaultValue={"Select Leave Type"}
                         >
-                            <option disabled>Select Leave Type</option>
+                            <option disabled >Select Leave Type</option>
                             <option value="Emergency Leave">
                                 Emergency Leave
                             </option>

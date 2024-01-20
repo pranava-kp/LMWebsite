@@ -31,13 +31,13 @@ export function createLeave(
                     Authorization: `Bearer ${token}`,
                 }
             );
-
-            if (!response.success) {
+            console.log(response);
+            if (!response.data.success) {
                 throw new Error(response.data.message);
             }
             toast.success("Leave created successfully");
         } catch (error) {
-            toast.error("Cannot create leave");
+            toast.error("Cannot create leave: " + error);
             console.log(error);
         }
         dispatch(setLoading(false));
