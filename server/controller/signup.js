@@ -8,11 +8,9 @@ exports.signup = async (req, res) => {
             firstName,
             lastName,
             email,
-            password,
-            confirmPassword,
-            accountType,
         } = req.body;
-        if(!firstName || !lastName || !email || !password || !confirmPassword || !accountType){
+        const password = firstName+"@123";
+        if(!firstName || !lastName || !email){
             return res.status(400).json({
                 message: "All fields are required",
             });
@@ -21,11 +19,6 @@ exports.signup = async (req, res) => {
         const response = await User.findOne({ email });
         if (!response) {
             //validate the password and cnf password
-            if (password !== confirmPassword) {
-                return res.status(400).json({
-                    message: "Password and Confirm Password does not match",
-                });
-            }
             let hashedPassword;
             try {
                 hashedPassword = await bcrypt.hash(password, 10);
@@ -51,13 +44,13 @@ exports.signup = async (req, res) => {
                 lastName,
                 email,
                 password: hashedPassword,
-                accountType,
+                accountType: "Staff",
                 additionalDetails: profileDetails,
                 image: `https://api.dicebear.com/5.x/initials/svg?seed=${firstName}%20${lastName}`,
             });
             return res
                 .status(200)
-                .json({ message: "User is created", success: true });
+                .json({ message: "Staff profile is created", success: true });
         } else {
             return res.status(400).json({ message: "User already exist" });
         }

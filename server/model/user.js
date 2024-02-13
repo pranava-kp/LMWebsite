@@ -25,11 +25,20 @@ const userSchema = new mongoose.Schema(
         accountType: {
             type: String,
             enum: ["Admin", "Staff", "HOD", "Principal"],
+            default: "Staff",
         },
         // image: {
         //     type: String,
         //     required: true,
         // },
+        hiringDate:{
+            type: Date,
+            default: Date.now,
+        },
+        department:{
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Department",
+        },
         token: {
             type: String,
         },

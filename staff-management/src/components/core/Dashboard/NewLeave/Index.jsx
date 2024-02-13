@@ -1,12 +1,14 @@
 import React, { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import rnsLogo from "../../../../assets/images/rns-logo.webp";
+import { FaSearch } from "react-icons/fa";
 import { createLeave } from "../../../../services/operations/leaveAPI";
-import toast from "react-hot-toast";
+import SubstituteTeacherBox from "./SubstituteTeacherBox";
 
 const NewLeave = () => {
     const { token } = useSelector((state) => state.auth);
     const [loading, setLoading] = useState(false);
+    const [substitutionBox, setSubstitutionBox] = useState(false);
     const dispatch = useDispatch();
     const [formData, setFormData] = useState({
         subject: "",
@@ -27,11 +29,12 @@ const NewLeave = () => {
         e.preventDefault();
         console.log("form data:", formData);
         setLoading(true);
-        try{
-            dispatch(createLeave(category, subject, body, startDate, endDate, token))
-        }
-        catch(e){
-            console.log("Error in creating leave: ", e)
+        try {
+            dispatch(
+                createLeave(category, subject, body, startDate, endDate, token)
+            );
+        } catch (e) {
+            console.log("Error in creating leave: ", e);
         }
         setLoading(false);
     };
@@ -65,15 +68,15 @@ const NewLeave = () => {
                         htmlFor="body"
                         className=" text-sm font-semibold uppercase"
                     >
-                        Message<sup className=" text-pink-500"> *</sup>
+                        Detailed Reason<sup className=" text-pink-500"> *</sup>
                     </label>
                     <textarea
-                    onChange={handleOnChange}
+                        onChange={handleOnChange}
                         name="body"
                         id="body"
                         cols="40"
                         rows="10"
-                        placeholder="Enter Message"
+                        placeholder="Enter Detailed Reason"
                         className=" bg-white px-4 py-2 rounded"
                     ></textarea>
                 </div>
@@ -124,13 +127,40 @@ const NewLeave = () => {
                             onChange={handleOnChange}
                             defaultValue={"Select Leave Type"}
                         >
-                            <option disabled >Select Leave Type</option>
+                            <option disabled>Select Leave Type</option>
                             <option value="Emergency Leave">
                                 Emergency Leave
                             </option>
                             <option value="Casual Leave">Casual Leave</option>
                             <option value="Others">Others</option>
                         </select>
+                    </div>
+                </div>
+                <div>
+                    <div>
+                        <h2>Do you have class on any of these days?</h2>
+                        <div className="flex gap-4">
+                            <input
+                                type="radio"
+                                name="class"
+                                id="yes"
+                                value="yes"
+                                onClick={() => setSubstitutionBox(true)}
+                            />
+                            <label htmlFor="yes">Yes</label>
+                            <input
+                                type="radio"
+                                name="class"
+                                id="no"
+                                value="no"
+                                onClick={() => setSubstitutionBox(false)}
+                            />
+                            <label htmlFor="no">No</label>
+                        </div>
+                        {/* Substitute Teacher Box */}
+                        {substitutionBox && (
+                            <SubstituteTeacherBox token={token}/>
+                        )}
                     </div>
                 </div>
                 <div className="mx-auto mt-4">

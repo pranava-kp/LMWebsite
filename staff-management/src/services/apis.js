@@ -19,3 +19,7 @@ export const leaveEndpoints = {
     CREATE_LEAVE: BASE_URL + "/createLeave",
     GET_ALL_USER_LEAVES: BASE_URL + "/getAllUserLeaves",
 }
+
+export const userEndpoints = {
+    GET_ALL_USER: BASE_URL + "/getAllUser",
+}

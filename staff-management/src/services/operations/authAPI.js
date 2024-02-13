@@ -29,11 +29,9 @@ export function signUp(
                 throw new Error(response.data.message);
             }
             toast.success("Signup Successful");
-            navigate("/login");
         } catch (error) {
             toast.error("Signup Failed");
             console.log(error);
-            navigate("/signup");
         }
         dispatch(setLoading(false));
         toast.dismiss(toastId);

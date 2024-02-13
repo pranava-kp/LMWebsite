@@ -14,6 +14,9 @@ const { getAllFiles } = require("../controller/File");
 const { createLeave } = require("../controller/Leave");
 const { getAllUserLeaves } = require("../controller/Leave");
 
+// USER ENDPOINTS
+const { getAllUsers } = require("../controller/User");
+
 // AUTH ROUTES
 router.post("/signup", signup);
 router.post("/login", login);
@@ -26,4 +29,7 @@ router.get("/getAllimage", getAllFiles);
 // LEAVE ROUTES
 router.post("/createLeave", auth, isStaff, createLeave);
 router.get("/getAllUserLeaves", auth, isStaff, getAllUserLeaves);
+
+// USER ROUTES
+router.get("/getAllUser", auth, getAllUsers);
 module.exports = router;

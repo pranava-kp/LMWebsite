@@ -11,10 +11,6 @@ const profileSchema = new mongoose.Schema({
     gender:{
         type: String,
     },
-    department:{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Department",
-    },
     leaves:[
         {
             type: mongoose.Schema.Types.ObjectId,
