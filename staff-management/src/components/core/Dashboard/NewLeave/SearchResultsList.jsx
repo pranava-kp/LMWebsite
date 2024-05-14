@@ -1,6 +1,6 @@
 import React from "react";
 
-const SearchResultsList = ({ results }) => {
+const SearchResultsList = ({ results, onSelectSubstituteTeacher }) => {
     //  TEST DATA
 
     // const newResults = [
@@ -35,6 +35,7 @@ const SearchResultsList = ({ results }) => {
                 <ul className=" bg-white p-2 rounded-md">
                     {results.map((result, index) => (
                         <li
+                            onClick={() => onSelectSubstituteTeacher(result._id)}
                             key={index}
                             className={`cursor-pointer hover:bg-gray-100 p-2 ${
                                 index === 0 ? "" : "border-t"

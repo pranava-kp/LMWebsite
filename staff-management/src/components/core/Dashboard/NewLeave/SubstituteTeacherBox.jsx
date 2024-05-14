@@ -1,12 +1,18 @@
-import React, {useState} from "react";
+import React, { useState } from "react";
 import { FaSearch } from "react-icons/fa";
 import { getAllUsers } from "../../../../services/operations/commonAPI";
 import SearchResultsList from "./SearchResultsList";
 
-const SubstituteTeacherBox = ({token}) => {
-
+const SubstituteTeacherBox = ({
+    token,
+    substituteTeachers,
+    setSubstituteTeachers,
+    index,
+}) => {
     const [results, setResults] = useState([]); // Search result of staff when searched for substitute teacher
-    const handleSearch = async (searchQuery) => {
+    const handleSearch = async (searchQuery, e) => {
+        if (e.key === "Backspace") {
+        }
         // FETCH ALL USERS FROM THE DATABASE
         const allUsers = await getAllUsers(token);
         const searchResults = allUsers.data.users.filter((user) => {
@@ -24,28 +30,29 @@ const SubstituteTeacherBox = ({token}) => {
         });
         setResults(searchResults);
     };
+    const onSelectSubstituteTeacher = (newSubstituteTeacher) => {
+        setResults([]);
+    };
 
     return (
-        <div className="flex flex-col gap-4 mt-4">
-            <label
-                htmlFor="substituteTeacher"
-                className=" text-sm font-semibold uppercase"
-            >
-                Substitute Teacher
-                <sup className=" text-pink-500">*</sup>
-            </label>
-            <div className="flex gap-2 items-center bg-white p-2 rounded-md">
-                <FaSearch className=" text-rnsit-blue" />
-                <input
-                    type="text"
-                    name="substituteTeacher"
-                    id="substituteTeacher"
-                    placeholder="Enter Name"
-                    className=" bg-white outline-none"
-                    onChange={(e) => handleSearch(e.target.value)}
+        <div className="flex mt-4 gap-4">
+            <div className="w-full">
+                <div className="flex gap-2 items-center bg-white p-2 rounded-md">
+                    <FaSearch className=" text-rnsit-blue" />
+                    <input
+                        type="text"
+                        name="substituteTeacher"
+                        id="substituteTeacher"
+                        placeholder="Enter Name"
+                        className=" bg-white outline-none w-full"
+                        onChange={(e) => handleSearch(e.target.value, e)}
+                    />
+                </div>
+                <SearchResultsList
+                    results={results}
+                    onSelectSubstituteTeacher={onSelectSubstituteTeacher}
                 />
             </div>
-            <SearchResultsList results={results} />
         </div>
     );
 };

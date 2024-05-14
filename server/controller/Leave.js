@@ -5,10 +5,17 @@ const moment = require("moment");
 
 exports.createLeave = async (req, res) => {
     try {
-        const { category, subject, body } = req.body;
+        const { category, subject, body, substituteTeacher } = req.body;
         const startDate = moment(req.body.startDate, "YYYY-MM-DD");
         const endDate = moment(req.body.endDate, "YYYY-MM-DD");
-        if (!category || !subject || !body || !startDate || !endDate) {
+        if (
+            !category ||
+            !subject ||
+            !body ||
+            substituteTeacher ||
+            !startDate ||
+            !endDate
+        ) {
             return res.status(400).json({
                 success: false,
                 message: "All fields are required",
@@ -72,6 +79,7 @@ exports.createLeave = async (req, res) => {
             body,
             startDate,
             endDate,
+            substituteTeacher,
         });
         // Push the leave to the user's profile
         await Profile.findByIdAndUpdate(

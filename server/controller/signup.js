@@ -4,13 +4,9 @@ const bcrypt = require("bcrypt");
 exports.signup = async (req, res) => {
     try {
         //fetch the data from the req body;
-        const {
-            firstName,
-            lastName,
-            email,
-        } = req.body;
-        const password = firstName+"@123";
-        if(!firstName || !lastName || !email){
+        const { firstName, lastName, email } = req.body;
+        const password = firstName + "@123";
+        if (!firstName || !lastName || !email) {
             return res.status(400).json({
                 message: "All fields are required",
             });
@@ -28,7 +24,7 @@ exports.signup = async (req, res) => {
                     error: error,
                 });
             }
-            
+
             //Create entry in DB
             const profileDetails = await Profile.create({
                 dateOfBirth: null,

@@ -27,7 +27,7 @@ function LoginForm() {
         e.preventDefault();
         dispatch(login(email, password, navigate));
     };
-    
+
     return (
         <form
             onSubmit={handleOnSubmit}
@@ -48,7 +48,7 @@ function LoginForm() {
                         boxShadow:
                             "inset 0px -1px 0px rgba(255, 255, 255, 0.18)",
                     }}
-                    className="w-full rounded-[0.5rem] bg-richblack-800 p-[12px] text-gray-100"
+                    className="w-full rounded-[0.5rem] bg-richblack-800 p-[12px] text-black"
                 />
             </label>
             <label className="relative">

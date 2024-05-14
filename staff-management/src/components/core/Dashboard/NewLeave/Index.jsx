@@ -4,6 +4,7 @@ import rnsLogo from "../../../../assets/images/rns-logo.webp";
 import { FaSearch } from "react-icons/fa";
 import { createLeave } from "../../../../services/operations/leaveAPI";
 import SubstituteTeacherBox from "./SubstituteTeacherBox";
+import SubstituteDayBox from "./SubstituteDayBox";
 
 const NewLeave = () => {
     const { token } = useSelector((state) => state.auth);
@@ -16,6 +17,7 @@ const NewLeave = () => {
         startDate: null,
         endDate: null,
         category: "",
+        substituteTeachers: [],
     });
 
     const handleOnChange = (e) => {
@@ -25,6 +27,14 @@ const NewLeave = () => {
         }));
     };
     const { subject, body, startDate, endDate, category } = formData;
+    const differenceMs = new Date(endDate) - new Date(startDate);
+    const differenceDays =
+        differenceMs / (1000 * 60 * 60 * 24) > 0
+            ? differenceMs / (1000 * 60 * 60 * 24) + 1
+            : parseInt(0);
+    console.log("startDate: ", startDate);
+    console.log("endDate: ", endDate);
+    console.log("Difference Days: ", differenceDays);
     const handleOnSubmit = (e) => {
         e.preventDefault();
         console.log("form data:", formData);
@@ -159,7 +169,24 @@ const NewLeave = () => {
                         </div>
                         {/* Substitute Teacher Box */}
                         {substitutionBox && (
-                            <SubstituteTeacherBox token={token}/>
+                            <div>
+                                <h2
+                                    htmlFor="substituteTeachers"
+                                    className=" text-sm font-semibold uppercase mt-4"
+                                >
+                                    Substitute Teacher
+                                    <sup className=" text-pink-500">*</sup>
+                                </h2>
+                                {Array.from({ length: differenceDays }).map(
+                                    (_, i) => (
+                                        <SubstituteDayBox
+                                            key={i}
+                                            day={i + 1}
+                                            token={token}
+                                        />
+                                    )
+                                )}
+                            </div>
                         )}
                     </div>
                 </div>
