@@ -8,13 +8,13 @@ const SubstituteDayBox = ({ day, token }) => {
         setPeriods(periods + 1);
     };
 
-    const [periodsArray, setPeriodsArray] = useState(Array.from({ length: periods }));
+    const [teachersArray, setTeachersArray] = useState(Array.from({ length: periods }));
     const updateTeacher = (index, newValue) => {
         // Create a new array with the updated value
-        const updatedArray = [...periodsArray];
+        const updatedArray = [...teachersArray];
         updatedArray[index] = newValue;
-        setPeriodsArray(updatedArray);
-      };
+        setTeachersArray(updatedArray);
+    };
 
 
     return (
