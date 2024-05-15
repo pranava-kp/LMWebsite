@@ -32,9 +32,11 @@ const NewLeave = () => {
         differenceMs / (1000 * 60 * 60 * 24) > 0
             ? differenceMs / (1000 * 60 * 60 * 24) + 1
             : parseInt(0);
-    console.log("startDate: ", startDate);
-    console.log("endDate: ", endDate);
     console.log("Difference Days: ", differenceDays);
+
+    const daysArray = Array.from({ length: differenceDays })
+
+
     const handleOnSubmit = (e) => {
         e.preventDefault();
         console.log("form data:", formData);
@@ -57,6 +59,7 @@ const NewLeave = () => {
                 <div></div>
             </div>
             <form onSubmit={handleOnSubmit} className=" flex flex-col gap-4">
+                {/* SUBJECT */}
                 <div className="flex flex-col gap-1">
                     <label
                         htmlFor="subject"
@@ -73,6 +76,8 @@ const NewLeave = () => {
                         onChange={handleOnChange}
                     />
                 </div>
+
+                {/* BODY */}
                 <div className="flex flex-col gap-1">
                     <label
                         htmlFor="body"
@@ -90,6 +95,8 @@ const NewLeave = () => {
                         className=" bg-white px-4 py-2 rounded"
                     ></textarea>
                 </div>
+
+                {/* DATES */}
                 <div className="flex flex-row justify-between items-center">
                     <div className="flex gap-20">
                         <div className="flex flex-col">
@@ -123,6 +130,8 @@ const NewLeave = () => {
                             />
                         </div>
                     </div>
+
+                    {/* LEAVE TYPE */}
                     <div>
                         <label
                             htmlFor="category"
@@ -146,6 +155,8 @@ const NewLeave = () => {
                         </select>
                     </div>
                 </div>
+
+                {/* YES OR NO FOR PERIODS */}
                 <div>
                     <div>
                         <h2>Do you have class on any of these days?</h2>
@@ -177,7 +188,7 @@ const NewLeave = () => {
                                     Substitute Teacher
                                     <sup className=" text-pink-500">*</sup>
                                 </h2>
-                                {Array.from({ length: differenceDays }).map(
+                                {daysArray.map(
                                     (_, i) => (
                                         <SubstituteDayBox
                                             key={i}

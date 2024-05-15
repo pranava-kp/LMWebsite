@@ -7,14 +7,24 @@ const SubstituteDayBox = ({ day, token }) => {
         e.preventDefault();
         setPeriods(periods + 1);
     };
+
+    const [periodsArray, setPeriodsArray] = useState(Array.from({ length: periods }));
+    const updateTeacher = (index, newValue) => {
+        // Create a new array with the updated value
+        const updatedArray = [...periodsArray];
+        updatedArray[index] = newValue;
+        setPeriodsArray(updatedArray);
+      };
+
+
     return (
         <div className="flex flex-col my-4 gap-4 w-full">
             <div className="flex justify-between">
                 <h2>Day {day}</h2>
                 <button onClick={increasePeriods}>+</button>
             </div>
-            {Array.from({ length: periods }).map((_, i) => (
-                <SubstituteTeacherBox key={i} index={i} token={token} />
+            {periodsArray.map((teacherName, i) => (
+                <SubstituteTeacherBox key={i} index={i} token={token} value={teacherName} updateTeacher={updateTeacher} />
             ))}
         </div>
     );
