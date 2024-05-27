@@ -1,12 +1,12 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import rnsLogo from "../../../../assets/images/rns-logo.webp";
 import { FaSearch } from "react-icons/fa";
 import { createLeave } from "../../../../services/operations/leaveAPI";
-import SubstituteTeacherBox from "./SubstituteTeacherBox";
 import SubstituteDayBox from "./SubstituteDayBox";
 
 const NewLeave = () => {
+    const [substituteTeachers, setSubstituteTeachers] = useState({});
     const { token } = useSelector((state) => state.auth);
     const [loading, setLoading] = useState(false);
     const [substitutionBox, setSubstitutionBox] = useState(false);
@@ -17,7 +17,7 @@ const NewLeave = () => {
         startDate: null,
         endDate: null,
         category: "",
-        substituteTeachers: [],
+        substituteTeachers: substituteTeachers,
     });
 
     const handleOnChange = (e) => {
@@ -34,16 +34,35 @@ const NewLeave = () => {
             : parseInt(0);
     console.log("Difference Days: ", differenceDays);
 
-    const daysArray = Array.from({ length: differenceDays })
+    const dayValueChanger = (day, newTeacherArray) =>{
+        setSubstituteTeachers(prevSubTeachers => ({
+            ...prevSubTeachers,
+            ["Day"+day]: newTeacherArray
+          }));
+          console.log("All Teachers:",substituteTeachers)
+    }
 
+
+    // Update substituteTeachers state based on date changes
+    useEffect(() => {
+        if (differenceDays > 0) {
+            const newSubstituteTeachers = {};
+            for (let i = 0; i < differenceDays; i++) {
+                newSubstituteTeachers[`Day${i + 1}`] = { teachers: [] };
+            }
+            setSubstituteTeachers(newSubstituteTeachers);
+            console.log("All Substitute Teachers: ", newSubstituteTeachers);
+        }
+    }, [startDate, endDate, differenceDays]);
 
     const handleOnSubmit = (e) => {
         e.preventDefault();
+        console.log("Sub Teachers: ", substituteTeachers)
         console.log("form data:", formData);
         setLoading(true);
         try {
             dispatch(
-                createLeave(category, subject, body, startDate, endDate, token)
+                createLeave(subject, body, startDate, endDate, category, substituteTeachers, token)
             );
         } catch (e) {
             console.log("Error in creating leave: ", e);
@@ -59,6 +78,7 @@ const NewLeave = () => {
                 <div></div>
             </div>
             <form onSubmit={handleOnSubmit} className=" flex flex-col gap-4">
+
                 {/* SUBJECT */}
                 <div className="flex flex-col gap-1">
                     <label
@@ -188,15 +208,17 @@ const NewLeave = () => {
                                     Substitute Teacher
                                     <sup className=" text-pink-500">*</sup>
                                 </h2>
-                                {daysArray.map(
-                                    (_, i) => (
-                                        <SubstituteDayBox
-                                            key={i}
-                                            day={i + 1}
-                                            token={token}
-                                        />
-                                    )
-                                )}
+                                {Object.keys(substituteTeachers).map((dayData, i) => (
+                                    <SubstituteDayBox
+                                        key={i}
+                                        day={i+1}
+                                        dayData={dayData}
+                                        token={token}
+                                        substituteTeachers={substituteTeachers}
+                                        setSubstituteTeachers={setSubstituteTeachers}
+                                        dayValueChanger={dayValueChanger}
+                                    />
+                                ))}
                             </div>
                         )}
                     </div>
@@ -212,3 +234,22 @@ const NewLeave = () => {
 };
 
 export default NewLeave;
+
+
+// SAMPLE DATA OF SUBSTITUTE TEACHER
+
+// const substitute Teachers data=
+// [
+//     // day 1:
+//     day1:{
+//         teachers:[
+//             {teach1}, {teach2}
+//         ]
+//     },
+//     // day 2:
+//     day2:{
+//         teachers:[
+//             {teach1}, {teach2}
+//         ]
+//     }
+// ]

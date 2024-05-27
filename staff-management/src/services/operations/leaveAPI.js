@@ -6,11 +6,12 @@ import { apiConnector } from "../apiConnector";
 const { CREATE_LEAVE, GET_ALL_USER_LEAVES } = leaveEndpoints;
 
 export function createLeave(
-    category,
     subject,
     body,
     startDate,
     endDate,
+    category,
+    substituteTeachers,
     token
 ) {
     return async (dispatch) => {
@@ -21,11 +22,12 @@ export function createLeave(
                 "POST",
                 CREATE_LEAVE,
                 {
-                    category,
                     subject,
                     body,
                     startDate,
                     endDate,
+                    category,
+                    substituteTeachers
                 },
                 {
                     Authorization: `Bearer ${token}`,

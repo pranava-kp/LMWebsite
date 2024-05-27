@@ -1,6 +1,9 @@
 import React from "react";
 
-const SearchResultsList = ({ results, onSelectSubstituteTeacher }) => {
+const SearchResultsList = ({
+    results,
+    onSelectSubstituteTeacher,
+}) => {
     //  TEST DATA
 
     // const newResults = [
@@ -29,13 +32,16 @@ const SearchResultsList = ({ results, onSelectSubstituteTeacher }) => {
     //         lastName: "Smith",
     //     },
     // ];
+
+    // console.log("Results: ", results);
+
     return (
         results.length > 0 && (
             <div className=" overflow-y-scroll max-h-[200px] shadow-md">
                 <ul className=" bg-white p-2 rounded-md">
                     {results.map((result, index) => (
                         <li
-                            onClick={() => onSelectSubstituteTeacher(result._id)}
+                            onClick={() => onSelectSubstituteTeacher(result)}
                             key={index}
                             className={`cursor-pointer hover:bg-gray-100 p-2 ${
                                 index === 0 ? "" : "border-t"
