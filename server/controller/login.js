@@ -18,7 +18,7 @@ exports.login = async (req, res) => {
             accountType: response.accountType,
         };
         if (await bcrypt.compare(password, response.password)) {
-            const token = jwt.sign(playload, process.env.JWT_TOKEN, {
+            const token = jwt.sign(playload, process.env.JWT_SECRET, {
                 expiresIn: "7d",
             });
             console.log(token);

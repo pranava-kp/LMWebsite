@@ -13,7 +13,7 @@ exports.auth = async (req, res, next) => {
             return res.status(400).json({ message: "Token is missing" });
         }
         try {
-            const response = jwt.verify(token, process.env.JWT_TOKEN);
+            const response = jwt.verify(token, process.env.JWT_SECRET);
             console.log(response);
             req.user = response;
         } catch (error) {

@@ -29,7 +29,7 @@ const NewLeave = () => {
     const { subject, body, startDate, endDate, category } = formData;
     const differenceMs = new Date(endDate) - new Date(startDate);
     const differenceDays =
-        differenceMs / (1000 * 60 * 60 * 24) > 0
+        differenceMs / (1000 * 60 * 60 * 24) >= 0
             ? differenceMs / (1000 * 60 * 60 * 24) + 1
             : parseInt(0);
     console.log("Difference Days: ", differenceDays);
@@ -51,6 +51,7 @@ const NewLeave = () => {
                 newSubstituteTeachers[`Day${i + 1}`] = { teachers: [] };
             }
             setSubstituteTeachers(newSubstituteTeachers);
+            // setSubstitutionBox(true)
             console.log("All Substitute Teachers: ", newSubstituteTeachers);
         }
     }, [startDate, endDate, differenceDays]);
