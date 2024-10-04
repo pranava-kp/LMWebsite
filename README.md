@@ -2,7 +2,7 @@
 Staff management project for college
 
 # .env file setup for server
-## Mail Setup
+### Mail Setup
 
 MAIL_USER = 
 
@@ -10,7 +10,7 @@ MAIL_HOST =
 
 MAIL_PASSWORD = 
 
-## Cloudinary
+### Cloudinary
 
 CLOUDINARY_CLOUD_NAME = 
 
@@ -18,13 +18,13 @@ CLOUDINARY_API_KEY =
 
 CLOUDINARY_API_SECRET = 
 
-## MongoDB
+### MongoDB
 
 MONGO_URL = "mongodb://127.0.0.1:27017/fileupload"
 
 PORT = 2000
 
-## JWT setup 
+### JWT setup 
 
 JWT_SECRET = "
 
