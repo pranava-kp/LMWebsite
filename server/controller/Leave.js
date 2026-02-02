@@ -2,77 +2,46 @@ const Leave = require("../model/leave");
 const User = require("../model/user");
 const Profile = require("../model/profile");
 const moment = require("moment");
-const { becameSubstituteTeacher } = require("../mail/templates/becameSubstituteTeacher");
-const mailSender = require("../utils/mailSender");
+const { sendSubstituteAssignment } = require("../mail/templates/becameSubstituteTeacher");
+const mailSender = require('../mail/sender');
 
 exports.createLeave = async (req, res) => {
     try {
         const { subject, body, category, substituteTeachers } = req.body;
         const startDate = moment(req.body.startDate, "YYYY-MM-DD");
         const endDate = moment(req.body.endDate, "YYYY-MM-DD");
-        // console.log(subject, body, category, startDate, endDate, substituteTeachers)
-        if (
-            !subject ||
-            !body ||
-            !startDate ||
-            !endDate ||
-            !category ||
-            !substituteTeachers
-        ) {
+
+        // Validation checks (unchanged)
+        if (!subject || !body || !startDate || !endDate || !category || !substituteTeachers) {
             return res.status(400).json({
                 success: false,
                 message: "All fields are required",
             });
         }
 
-        // Checking if dates are valid and if End date is before Start date
-        if (
-            !startDate.isValid() ||
-            !endDate.isValid() ||
-            startDate.isAfter(endDate)
-        ) {
-            return res
-                .status(400)
-                .json({ success: false, message: "Invalid leave period." });
+        if (!startDate.isValid() || !endDate.isValid() || startDate.isAfter(endDate)) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Invalid leave period." 
+            });
         }
-        const user = req.user;
-        // console.log(user);
 
-        // Checking if Leave count are available at the backend
+        const user = req.user;
         const profile = await User.findById(user.id).populate({
             path: "additionalDetails",
-            populate: {
-                path: "leaves",
-            },
+            populate: { path: "leaves" }
         });
-        const absentTeacherName = `${profile.firstName} ${profile.lastName}`
+
+        const absentTeacherName = `${profile.firstName} ${profile.lastName}`;
         const additionalDetails = profile.additionalDetails;
-        console.log("additionalDetails: ", additionalDetails);
 
-        //Calculating the no. of leaves user already taken
-        const totalDaysTaken = additionalDetails.leaves.reduce(
-            (total, leave) => {
-                const leaveDuration =
-                    Math.ceil(
-                        (leave.endDate - leave.startDate) /
-                            (1000 * 60 * 60 * 24)
-                    ) + 1;
-                return total + leaveDuration;
-            },
-            0
-        );
+        // Calculate leave days (unchanged)
+        const totalDaysTaken = additionalDetails.leaves.reduce((total, leave) => {
+            const leaveDuration = Math.ceil((leave.endDate - leave.startDate) / (1000 * 60 * 60 * 24)) + 1;
+            return total + leaveDuration;
+        }, 0);
 
-        // Printing Suff
-        console.log("total leaves user already took: ", totalDaysTaken);
-        console.log("startDate: ", startDate);
-        console.log("endDate: ", endDate);
         const dateDifferenceInDays = endDate.diff(startDate, "days") + 1;
-        console.log(
-            "dateDifferenceInDays for current leave duration user is asking for: ",
-            dateDifferenceInDays
-        );
-
-        // Returning if days difference is low
         if (dateDifferenceInDays > 12 - totalDaysTaken) {
             return res.status(400).json({
                 success: false,
@@ -80,7 +49,7 @@ exports.createLeave = async (req, res) => {
             });
         }
 
-        // After checking all the conditions, create the leave
+        // Create leave (unchanged)
         const leave = await Leave.create({
             user: user.id,
             category,
@@ -91,84 +60,43 @@ exports.createLeave = async (req, res) => {
             substituteTeachers,
         });
 
-        // Push the leave to the user's profile
         await Profile.findByIdAndUpdate(
             additionalDetails._id,
-            {
-                $push: {
-                    leaves: leave._id,
-                },
-            },
+            { $push: { leaves: leave._id } },
             { new: true }
         );
 
-        // Send email to substitute teachers
+        // Improved email sending
         try {
-            const extractEmails = (data) => {
-                const emails = [];
+            const substituteEmails = Object.entries(substituteTeachers)
+                .flatMap(([dayKey, substitutes]) => 
+                    substitutes.map(substitute => ({
+                        email: substitute.email,
+                        name: `${substitute.firstName} ${substitute.lastName}`,
+                        date: moment(startDate).add(dayKey.replace('Day', ''), 'days').toDate()
+                    }))
+                );
 
-                // Get the keys of the data object
-                const days = Object.keys(data);
-                console.log("Days error wala:", days)
-                days.forEach((dayKey, dayIndex) => {
-                    // Use dayIndex + 1 to convert Day1 to 1, Day2 to 2, and so on
-                    const dayNumber = dayIndex + 1;
-                    data[dayKey].forEach((person) => {
-                        emails.push({
-                            dayToAdd: dayNumber - 1,
-                            name: `${person.firstName} ${person.lastName}`,
-                            email: person.email,
-                        });
-                    });
-                });
-
-                return emails;
-            };
-            const emails = extractEmails(substituteTeachers);
-            console.log(emails);
-            // Output:
-            // [
-            //   { day: 0, name: Tanishq, email: '1rn21cs170.tanishqrinjay@rnsit.ac.in' },
-            //   { day: 1, name: Rohit, email: 'sharmarohit@gmail.com' }
-            // ]
-
-            // Function to loop over the mail array and call sendMessageToBackend
-            const processMails = async (emails) => {
-                for (const { dayToAdd, name, email } of emails) {
-                    await mailSender(
-                            email,
-                            "Substitute Assignment",
-                            becameSubstituteTeacher(
-                                startDate,
-                                dayToAdd,
-                                name,
-                                `${absentTeacherName}`
-                            )
-                        );
-                    console.log(`Message sent for day ${dayToAdd} to ${email}`);
-                }
-            };
-
-            // Call the processMails function with the mail array
-            processMails(emails)
+            await Promise.all(
+                substituteEmails.map(({ email, name, date }) => 
+                    sendSubstituteAssignment(email, name, absentTeacherName, date)
+                )
+            );
         } catch (error) {
-            // If there's an error sending the email, log the error and return a 500 (Internal Server Error) error
-            console.error("Error occurred while sending email:", error);
-            return res.status(500).json({
-                success: false,
-                message: "Error occurred while sending email",
-                error: error.message,
-            });
+            console.error("Email error:", error);
+            // Continue even if emails fail
         }
 
         return res.status(200).json({
             message: `Leave created successfully for ${dateDifferenceInDays} days`,
             success: true,
         });
+
     } catch (err) {
+        console.error("Leave creation error:", err);
         return res.status(500).json({
             message: "Internal server error",
-            error: err.message,
+            error: process.env.NODE_ENV === "development" ? err.message : undefined,
             success: false,
         });
     }
@@ -177,27 +105,172 @@ exports.createLeave = async (req, res) => {
 exports.getAllUserLeaves = async (req, res) => {
     try {
         const user = req.user;
-        console.log("User id: ", user.id);
-        const leaves = await Leave.find({ user: user.id });
+        const { departments } = req.query; // Optional filter for Principal
+        
+        let query = {};
+
+        // For Staff - only show their own leaves
+        if (user.accountType === 'Staff' || user.accountType === 'Teacher') {
+            query.user = user.id;
+        } 
+        // For HOD - only show leaves from their department
+        else if (user.accountType === 'HOD') {
+            const departmentUsers = await User.find({ department: user.department }, '_id');
+            const userIds = departmentUsers.map(user => user._id);
+            query.user = { $in: userIds };
+        } 
+        // For Principal - optional department filter
+        else if (user.accountType === 'Principal') {
+            if (departments) {
+                const departmentArray = departments.split(','); // Consistent with getAllUsers
+                const departmentUsers = await User.find({ department: { $in: departmentArray } }, '_id');
+                const userIds = departmentUsers.map(user => user._id);
+                query.user = { $in: userIds };
+            }
+        }
+        // For other account types (admin, etc.) - return empty by default
+        else {
+            return res.status(403).json({
+                message: "Unauthorized access",
+                success: false,
+            });
+        }
+
+        const leaves = await Leave.find(query).populate({
+            path: 'user',
+            select: 'firstName lastName department email'
+        }).sort({ createdAt: -1 }); // Newest leaves first
+
         const totalLeavesTaken = leaves.reduce((total, leave) => {
-            const leaveDuration =
-                Math.ceil(
-                    (leave.endDate - leave.startDate) / (1000 * 60 * 60 * 24)
-                ) + 1;
+            const leaveDuration = Math.ceil((leave.endDate - leave.startDate) / (1000 * 60 * 60 * 24)) + 1;
             return total + leaveDuration;
         }, 0);
+
         return res.status(200).json({
-            message: "All leaves fetched successfully",
-            data: {
+            message: "Leaves fetched successfully",
+            data: { 
                 leaves,
                 totalLeavesTaken,
+                // For HOD, show their department
+                // For Principal, show filtered departments if any
+                departmentInfo: user.accountType === 'HOD' ? 
+                    { department: user.department } : 
+                    user.accountType === 'Principal' ? 
+                    { departments: departments || 'all' } :
+                    null
             },
             success: true,
         });
     } catch (err) {
+        console.error("Get leaves error:", err);
         return res.status(500).json({
             message: "Internal server error",
+            error: process.env.NODE_ENV === "development" ? err.message : undefined,
             success: false,
         });
     }
 };
+
+exports.updateLeaveStatus = async (req, res) => {
+    try {
+        const { leaveId, status, rejectionReason } = req.body;
+        const user = req.user;
+
+        // Validate input
+        if (!leaveId || !status || !['Approved', 'Rejected'].includes(status)) {
+            return res.status(400).json({
+                success: false,
+                message: "Valid leaveId and status (Approved/Rejected) are required",
+            });
+        }
+
+        // Check if user is authorized (HOD or Principal)
+        if (user.accountType !== 'HOD' && user.accountType !== 'Principal') {
+            return res.status(403).json({
+                success: false,
+                message: "Only HOD or Principal can update leave status",
+            });
+        }
+
+        // Find the leave
+        const leave = await Leave.findById(leaveId).populate('user');
+        if (!leave) {
+            return res.status(404).json({
+                success: false,
+                message: "Leave not found",
+            });
+        }
+
+        // Additional check for HOD - can only approve leaves from their department
+        if (user.accountType === 'HOD') {
+            const leaveUser = await User.findById(leave.user);
+            if (user.department !== leaveUser.department) {
+                return res.status(403).json({
+                    success: false,
+                    message: "HOD can only approve leaves from their own department",
+                });
+            }
+        }
+
+        // Check if leave is already processed
+        if (leave.status !== 'Pending') {
+            return res.status(400).json({
+                success: false,
+                message: `Leave has already been ${leave.status.toLowerCase()}`,
+            });
+        }
+
+        // Update leave status
+        leave.status = status;
+        leave.updatedAt = new Date();
+        
+        // Append status update information to the body
+        const processedBy = `${user.accountType} (${user.firstName} ${user.lastName})`;
+        const statusUpdate = `\n\n[Status Update: ${status} by ${processedBy} on ${new Date().toLocaleString()}]`;
+        
+        if (status === 'Rejected' && rejectionReason) {
+            leave.body += `${statusUpdate}\nReason: ${rejectionReason}`;
+        } else {
+            leave.body += statusUpdate;
+        }
+
+        await leave.save();
+
+        return res.status(200).json({
+            success: true,
+            message: `Leave ${status.toLowerCase()} successfully`,
+            data: {
+                _id: leave._id,
+                status: leave.status,
+                updatedAt: leave.updatedAt,
+                subject: leave.subject,
+                user: {
+                    _id: leave.user._id,
+                    name: `${leave.user.firstName} ${leave.user.lastName}`
+                }
+            },
+        });
+
+    } catch (err) {
+        console.error("Leave status update error:", err);
+        return res.status(500).json({
+            message: "Internal server error",
+            error: process.env.NODE_ENV === "development" ? err.message : undefined,
+            success: false,
+        });
+    }
+};
+
+// # Approve a leave
+// curl -X POST "http://localhost:2000/api/v1/update-leave-status" \
+// -H "Authorization: Bearer PRINCIPAL_OR_HOD_TOKEN" \
+// -H "Content-Type: application/json" \
+// -d '{
+//   "leaveId": "687fe5541b24be76ddbf3061",
+//   "status": "Approved"
+// }'
+
+
+
+// # Reject a leave with reason
+// curl -X POST "http://localhost:2000/api/v1/update-leave-status" -H "Authorization: Bearer PRINCIPAL_OR_HOD_TOKEN" -H "Content-Type: application/json" -d '{"leaveId": "687fe5541b24be76ddbf3061", "status": "Rejected", "rejectionReason": "Insufficient substitute coverage"}'

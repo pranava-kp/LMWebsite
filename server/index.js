@@ -1,39 +1,39 @@
-const express=require('express');
-const {conectDB}=require('./config/database');
-const {cloudinaryConfig}=require('./config/cloudinary');
-const fileUpload=require('express-fileupload');
+const express = require('express');
+const { connectDB } = require('./config/database');
+const { cloudinaryConfig } = require('./config/cloudinary');
+const fileUpload = require('express-fileupload');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
+const app = express();
 
-
-const app=express();
 require("dotenv").config();
-const port=process.env.PORT || 5000;
+const port = process.env.PORT || 2000;
 
-// Use the cookie-parser middleware
-app.use(cookieParser());
+// Enhanced CORS Configuration
+app.use(cors({
+  origin: true, // Allow ALL origins (reflects the requesting origin)
+  credentials: true, // Allow cookies/auth headers
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
 
-//port listening
-app.listen(port,()=>{
-    console.log(`Server is running on port ${port}`);
-})    
-//middleware
+// Middleware
 app.use(express.json());
-app.use(cors());
+app.use(cookieParser());
 app.use(fileUpload({
-    useTempFiles:true,
-    tempFileDir:'/tmp/'
+  useTempFiles: true,
+  tempFileDir: '/tmp/'
+}));
 
-})); 
-
-//routes mounting
-const routes=require('./router/router');
-app.use('/api/v1',routes);
-
-//connection with file database
-conectDB();
-
-//cloudinary configuration
+// Database & Cloudinary
+connectDB();
 cloudinaryConfig();
 
-//authDatabase
+// Routes
+const routes = require('./router/router');
+app.use('/api/v1', routes); // This prefixes all routes with /api/v1
+
+// Server Start
+app.listen(port, () => {
+  console.log(`Server running on port ${port}`);
+});
