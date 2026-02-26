@@ -1,5 +1,5 @@
 # Dependency folders
-# node_modules/
+node_modules/
 /server/node_modules/
 /staff-management/node_modules/
 
