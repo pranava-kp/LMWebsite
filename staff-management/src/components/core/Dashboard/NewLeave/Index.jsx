@@ -5,6 +5,7 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import rnsLogo from "../../../../assets/images/rns-logo.webp";
 import { createLeave } from "../../../../services/operations/leaveAPI";
+import { axiosInstance } from "../../../../services/apiConnector";
 
 const NewLeave = () => {
     const [substituteTeachers] = useState({});
@@ -21,6 +22,9 @@ const NewLeave = () => {
         category: "",
         otherCategory: "",
     });
+
+    const [attachments, setAttachments] = useState([]);
+    const [uploading, setUploading] = useState(false);
 
     // For calendar controlled values
     const [startDateObj, setStartDateObj] = useState(null);
@@ -70,7 +74,8 @@ const NewLeave = () => {
                     apiEndDate,
                     category === "Others" ? otherCategory : category,
                     substituteTeachers,
-                    token
+                    token,
+                    attachments
                 )
             );
 
@@ -84,6 +89,47 @@ const NewLeave = () => {
             console.log("Error in creating leave: ", e);
         }
         setLoading(false);
+    };
+
+    const handleFileUpload = async (files) => {
+        if (!files || files.length === 0) return;
+        setUploading(true);
+        try {
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const form = new FormData();
+                form.append("Imagefile", file);
+
+                const res = await axiosInstance.post("/imageUpload", form, {
+                    headers: {
+                        "Content-Type": "multipart/form-data",
+                    },
+                });
+
+                if (res?.data?.success) {
+                    const fileData = res.data.data;
+                    setAttachments((prev) => [
+                        ...prev,
+                        { url: fileData.url, name: file.name, publicId: fileData.publicId || null },
+                    ]);
+                } else {
+                    console.error("Upload failed:", res?.data?.message);
+                }
+            }
+        } catch (err) {
+            console.error("File upload error:", err);
+        } finally {
+            setUploading(false);
+        }
+    };
+
+    const handleFileInput = (e) => {
+        const files = e.target.files;
+        handleFileUpload(files);
+    };
+
+    const removeAttachment = (idx) => {
+        setAttachments((prev) => prev.filter((_, i) => i !== idx));
     };
 
     return (
@@ -216,13 +262,39 @@ const NewLeave = () => {
                     </div>
                 </div>
 
-                <div className="mx-auto mt-4">
-                    <button
-                        className="text-gray-100 font-semibold text-lg bg-rnsit-blue px-4 py-2 rounded-md"
-                        disabled={loading}
-                    >
-                        {loading ? "Submitting..." : "Submit"}
-                    </button>
+                <div className="flex flex-col gap-2">
+                    <label className="text-sm font-semibold uppercase">Attach Documents</label>
+                    <input
+                        type="file"
+                        multiple
+                        onChange={handleFileInput}
+                        className="bg-white px-2 py-1 rounded"
+                    />
+                    {uploading && <div className="text-sm text-gray-600">Uploading...</div>}
+
+                    {attachments.length > 0 && (
+                        <ul className="space-y-1">
+                            {attachments.map((att, idx) => (
+                                <li key={idx} className="flex items-center justify-between bg-white px-3 py-2 rounded">
+                                    <a href={att.url} target="_blank" rel="noreferrer" className="text-blue-600 underline truncate">
+                                        {att.name}
+                                    </a>
+                                    <button type="button" onClick={() => removeAttachment(idx)} className="text-sm text-red-500 ml-4">
+                                        Remove
+                                    </button>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+
+                    <div className="mx-auto mt-4">
+                        <button
+                            className="text-gray-100 font-semibold text-lg bg-rnsit-blue px-4 py-2 rounded-md"
+                            disabled={loading}
+                        >
+                            {loading ? "Submitting..." : "Submit"}
+                        </button>
+                    </div>
                 </div>
             </form>
         </div>

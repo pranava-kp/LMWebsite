@@ -7,7 +7,7 @@ const mailSender = require('../mail/sender');
 
 exports.createLeave = async (req, res) => {
     try {
-        const { subject, body, category, substituteTeachers } = req.body;
+        const { subject, body, category, substituteTeachers, attachments } = req.body;
         const startDate = moment(req.body.startDate, "YYYY-MM-DD");
         const endDate = moment(req.body.endDate, "YYYY-MM-DD");
 
@@ -58,6 +58,7 @@ exports.createLeave = async (req, res) => {
             startDate,
             endDate,
             substituteTeachers,
+            attachments: Array.isArray(attachments) ? attachments : []
         });
 
         await Profile.findByIdAndUpdate(

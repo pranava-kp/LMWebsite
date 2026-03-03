@@ -2,7 +2,7 @@ export const sidebarLinks = [
     {
         id: 1,
         name: "Dashboard",
-        path: "/dashboard/staff",
+        path: "/dashboard",
         icon: "VscDashboard",
         roles: ["HOD", "Principal", "Staff"], 
     },

@@ -17,6 +17,7 @@
     "bcrypt": "^6.0.0",
     "date-fns": "^4.1.0",
     "dotenv": "^16.3.1",
+    "framer-motion": "^12.34.5",
     "js-cookie": "^3.0.5",
     "jwt-decode": "^4.0.0",
     "react": "^18.2.0",
