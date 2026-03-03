@@ -4,14 +4,28 @@ const Profile = require("../model/profile");
 const moment = require("moment");
 const { sendSubstituteAssignment } = require("../mail/templates/becameSubstituteTeacher");
 const mailSender = require('../mail/sender');
+const { becameSubstituteTeacher } = require("../mail/templates/becameSubstituteTeacher");
+const { uploadFileToCloudinary } = require("../utils/fileUploader");
 
 exports.createLeave = async (req, res) => {
     try {
-        const { subject, body, category, substituteTeachers } = req.body;
+        let { subject, body, category, substituteTeachers } = req.body;
         const startDate = moment(req.body.startDate, "YYYY-MM-DD");
         const endDate = moment(req.body.endDate, "YYYY-MM-DD");
 
-        // Validation checks (unchanged)
+        // Parse substituteTeachers back to JSON if it comes as a string from FormData
+        if (typeof substituteTeachers === "string") {
+            try {
+                substituteTeachers = JSON.parse(substituteTeachers);
+            } catch (error) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Invalid format for substituteTeachers",
+                });
+            }
+        }
+
+        // Validation checks
         if (!subject || !body || !startDate || !endDate || !category || !substituteTeachers) {
             return res.status(400).json({
                 success: false,
@@ -35,7 +49,7 @@ exports.createLeave = async (req, res) => {
         const absentTeacherName = `${profile.firstName} ${profile.lastName}`;
         const additionalDetails = profile.additionalDetails;
 
-        // Calculate leave days (unchanged)
+        // Calculate leave days
         const totalDaysTaken = additionalDetails.leaves.reduce((total, leave) => {
             const leaveDuration = Math.ceil((leave.endDate - leave.startDate) / (1000 * 60 * 60 * 24)) + 1;
             return total + leaveDuration;
@@ -49,7 +63,30 @@ exports.createLeave = async (req, res) => {
             });
         }
 
-        // Create leave (unchanged)
+        // --- CLOUDINARY UPLOAD LOGIC ---
+        let uploadedDocumentUrl = "";
+        
+        // Check if a file was uploaded via FormData (named 'supportDocument')
+        if (req.files && req.files.supportDocument) {
+            const document = req.files.supportDocument;
+            try {
+                // Upload to Cloudinary using the folder specified in .env
+                const uploadDetails = await uploadFileToCloudinary(
+                    document,
+                    process.env.CLOUDINARY_FOLDER
+                );
+                // Save the secure URL from Cloudinary
+                uploadedDocumentUrl = uploadDetails.secure_url;
+            } catch (uploadError) {
+                console.error("Cloudinary Upload Error:", uploadError);
+                return res.status(500).json({
+                    success: false,
+                    message: "Error uploading support document to Cloudinary",
+                });
+            }
+        }
+
+        // Create leave record in MongoDB, saving the Cloudinary URL
         const leave = await Leave.create({
             user: user.id,
             category,
@@ -58,6 +95,7 @@ exports.createLeave = async (req, res) => {
             startDate,
             endDate,
             substituteTeachers,
+            documentUrl: uploadedDocumentUrl, // Will save the Cloudinary URL or remain empty string
         });
 
         await Profile.findByIdAndUpdate(
@@ -66,7 +104,7 @@ exports.createLeave = async (req, res) => {
             { new: true }
         );
 
-        // Improved email sending
+        // Improved email sending (Non-blocking)
         try {
             const substituteEmails = Object.entries(substituteTeachers)
                 .flatMap(([dayKey, substitutes]) => 
@@ -84,12 +122,12 @@ exports.createLeave = async (req, res) => {
             );
         } catch (error) {
             console.error("Email error:", error);
-            // Continue even if emails fail
         }
 
         return res.status(200).json({
             message: `Leave created successfully for ${dateDifferenceInDays} days`,
             success: true,
+            leaveDetails: leave // Optional: return the leave so the frontend can see the documentUrl
         });
 
     } catch (err) {
@@ -101,7 +139,6 @@ exports.createLeave = async (req, res) => {
         });
     }
 };
-
 exports.getAllUserLeaves = async (req, res) => {
     try {
         const user = req.user;
