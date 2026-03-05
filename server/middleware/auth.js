@@ -1,3 +1,4 @@
+// server\middleware\auth.js
 const jwt = require("jsonwebtoken");
 const User = require("../model/user");
 const BlacklistedToken = require("../model/BlacklistedToken"); // Add this line

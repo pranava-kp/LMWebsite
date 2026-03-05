@@ -120,15 +120,18 @@ curl -X POST http://localhost:2000/api/v1/add-user \
 
 ## Leaves
 # 1. Creating leave
-curl -X POST "http://localhost:2000/api/v1/createLeave" -H "Authorization: Bearer " -H "Content-Type: application/json" -d '{
-  "subject": "Medical Leave",
-  "body": "I need to take leave for medical reasons",
-  "category": "Medical",
-  "startDate": "2023-12-01",
-  "endDate": "2023-12-03",
-  "substituteTeachers": {}
-}'
+curl -X POST http://localhost:2000/api/v1/createLeave \
+  -H "Authorization: Bearer TOKEN" \
+  -F "category=Casual Leave" \
+  -F "subject=Medical Emergency" \
+  -F "body=I am attaching my doctor's note for the requested sick leave." \
+  -F "startDate=2026-03-10" \
+  -F "endDate=2026-03-12" \
+  -F 'substituteTeachers={"Day1": [{"email": "substitute@example.com", "firstName": "Jane", "lastName": "Doe"}]}' \
+  -F "supportDocument=@<FILE PATH>"
 
+
+  
 # 2. Fetching leaves
 # The query string is optional. if the bearer token belongs to Princiapl, all leaves are fetched by default, howeer, if a HOD sends a request only leaves of that department will be returned. If a Staff makes the call only leave requests by that user will be returned
 curl -X GET "http://localhost:2000/api/v1/get-all-leaves?departments=ECE" \

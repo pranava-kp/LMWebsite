@@ -40,6 +40,10 @@ const leaveSchema = new mongoose.Schema({
         type: Date,
         default: Date.now,
     },
+    documentUrl: {
+        type: String, // Stores the Cloudinary secure_url
+        default: "",
+    },
 });
 
 module.exports = mongoose.model("Leave", leaveSchema);
