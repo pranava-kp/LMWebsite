@@ -32,11 +32,6 @@ const leaveSchema = new mongoose.Schema({
         type: Date,
         required: true,
     },
-    attachments: [{
-        url: { type: String },
-        publicId: { type: String },
-        name: { type: String }
-    }],
     createdAt: {
         type: Date,
         default: Date.now,

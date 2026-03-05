@@ -12,8 +12,7 @@ export function createLeave(
   endDate,
   category,
   substituteTeachers,
-  token,
-  attachments = []
+  token
 ) {
   return async (dispatch) => {
     const toastId = toast.loading("Loading...");
@@ -28,8 +27,7 @@ export function createLeave(
           startDate,
           endDate,
           category,
-          substituteTeachers,
-          attachments
+          substituteTeachers
         },
         {
           Authorization: `Bearer ${token}`,

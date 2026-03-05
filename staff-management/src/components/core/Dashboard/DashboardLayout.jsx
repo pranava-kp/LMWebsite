@@ -52,8 +52,8 @@ const DashboardLayout = () => {
                     }} />
                 </div>
 
-                <div className="flex-1 h-[calc(100vh-3.5rem)] w-full overflow-auto bg-grey-100">
-                    <div className="mx-auto w-11/12 max-w-[1200px] py-14">
+                <div className="flex-1 h-[calc(100vh-3.5rem)] w-full overflow-auto bg-white">
+                    <div className="mx-auto w-11/12 max-w-[1000px] py-10">
                         <Outlet />
                     </div>
                 </div>
