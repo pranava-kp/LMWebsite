@@ -33,6 +33,10 @@ curl -X POST http://localhost:2000/api/v1/login \
 curl -X GET "http://localhost:2000/api/v1/getAllUser?accountTypes=Admin,HOD&departments=CSE,ECE" \
   -H "Authorization: Bearer YOUR_TOKEN"
 
+# GET Staff Names and associated department
+curl -X GET http://localhost:2000/api/v1/getuserdept \
+  -H "Authorization: Bearer TOKEN"
+
 # Logout test
 curl -X POST http://localhost:2000/api/v1/logout \
   -H "Authorization: Bearer TOKEN" \
