@@ -3,7 +3,6 @@ import SignupForm from "./SignupForm";
 import ForgotPassword from "./ForgotPassword";
 
 function Template({ title, description1, description2, image, formType }) {
-  // const { loading } = useSelector((state) => state.auth)
   const loading = false; // TO DELETE
 
   let FormComponent;
@@ -19,14 +18,20 @@ function Template({ title, description1, description2, image, formType }) {
   }
 
   return (
-    <div className="grid min-h-[calc(100vh-3.5rem)] place-items-center patternBackground">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 p-6">
       {loading ? (
         <div className="spinner"></div>
       ) : (
-        <div className="mx-auto w-11/12 max-w-[450px] md:mx-0 bg-blue-300 rounded-md bg-clip-padding backdrop-filter backdrop-blur-[9px] bg-opacity-20 border border-gray-100 p-6 relative shadow-2xl">
-          <h1 className="text-[1.875rem] text-center font-semibold leading-[2.375rem] text-blue-800 ">
-            {title}
-          </h1>
+        <div className="w-full max-w-[450px] bg-white/10 backdrop-blur-lg border border-white/20 rounded-2xl p-8 shadow-2xl">
+          <header className="mb-8 text-center">
+            <h1 className="text-3xl font-bold text-white leading-tight">
+              {title}
+            </h1>
+            <p className="mt-3 text-slate-300">
+              <span className="block italic text-blue-400">{description1}</span>
+              <span className="text-sm">{description2}</span>
+            </p>
+          </header>
           <FormComponent />
         </div>
       )}
