@@ -272,289 +272,305 @@ const NewLeave = () => {
     };
 
     return (
-        <div className="flex flex-col border p-5 bg-gray-100 gap-8 w-full rounded-md">
-            <div className="flex justify-between text-3xl font-semibold">
-                <img src={rnsLogo} alt="" className="self-start w-10" />
-                Leave Application
-                <div></div>
-            </div>
-            <form onSubmit={handleOnSubmit} className="flex flex-col gap-4">
-                <div className="flex flex-col gap-1">
-                    <label htmlFor="subject" className="text-sm font-semibold uppercase">
-                        Subject<sup className="text-pink-500"> *</sup>
+  <div className="p-10 bg-gray-50 min-h-screen">
+
+    <div className="max-w-5xl mx-auto bg-white shadow-xl rounded-2xl p-8">
+
+      {/* HEADER */}
+      <div className="flex items-center gap-4 mb-8">
+        <img src={rnsLogo} alt="" className="w-12" />
+        <div>
+          <h1 className="text-3xl font-bold text-blue-600">
+            Leave Application
+          </h1>
+          <p className="text-sm text-gray-500">
+            Submit a new leave request
+          </p>
+        </div>
+      </div>
+
+      <form onSubmit={handleOnSubmit} className="flex flex-col gap-6">
+
+        {/* SUBJECT */}
+        <div>
+          <label className="block text-sm font-semibold mb-2 uppercase">
+            Subject *
+          </label>
+
+          <input
+            type="text"
+            name="subject"
+            value={formData.subject}
+            onChange={handleOnChange}
+            placeholder="Enter subject"
+            className="w-full border rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-300 outline-none"
+            required
+          />
+        </div>
+
+        {/* REASON */}
+        <div>
+          <label className="block text-sm font-semibold mb-2 uppercase">
+            Detailed Reason *
+          </label>
+
+          <textarea
+            name="body"
+            value={formData.body}
+            onChange={handleOnChange}
+            rows="5"
+            placeholder="Explain your leave reason"
+            className="w-full border rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-300 outline-none"
+            required
+          />
+        </div>
+
+        {/* DATE + TYPE */}
+        <div className="grid grid-cols-3 gap-6">
+
+          <div>
+            <label className="text-sm font-semibold uppercase mb-2 block">
+              From *
+            </label>
+
+            <DatePicker
+              selected={startDateObj}
+              onChange={(date) => {
+                setStartDateObj(date);
+                setFormData((prev) => ({
+                  ...prev,
+                  startDate: formatForApi(date)
+                }));
+
+                if (date && (!endDateObj || date > endDateObj)) {
+                  setEndDateObj(date);
+                  setFormData((prev) => ({
+                    ...prev,
+                    endDate: formatForApi(date)
+                  }));
+                }
+              }}
+              dateFormat="dd/MM/yyyy"
+              placeholderText="dd/mm/yyyy"
+              minDate={getYesterday()}
+              className="w-full border rounded-xl px-3 py-2"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="text-sm font-semibold uppercase mb-2 block">
+              To *
+            </label>
+
+            <DatePicker
+              selected={endDateObj}
+              onChange={(date) => {
+                setEndDateObj(date);
+                setFormData((prev) => ({
+                  ...prev,
+                  endDate: formatForApi(date)
+                }));
+              }}
+              dateFormat="dd/MM/yyyy"
+              placeholderText="dd/mm/yyyy"
+              minDate={startDateObj || getYesterday()}
+              className="w-full border rounded-xl px-3 py-2"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="text-sm font-semibold uppercase mb-2 block">
+              Leave Type *
+            </label>
+
+            <select
+              name="category"
+              value={formData.category}
+              onChange={handleOnChange}
+              className="w-full border rounded-xl px-3 py-2"
+              required
+            >
+              <option value="">Select Leave</option>
+              <option value="Emergency Leave">Emergency Leave</option>
+              <option value="Casual Leave">Casual Leave</option>
+              <option value="Others">Others</option>
+            </select>
+
+            {formData.category === "Others" && (
+              <input
+                type="text"
+                name="otherCategory"
+                value={formData.otherCategory}
+                onChange={handleOnChange}
+                placeholder="Specify leave type"
+                className="w-full border rounded-xl px-3 py-2 mt-2"
+                required
+              />
+            )}
+          </div>
+
+        </div>
+
+        {/* DAILY SCHEDULE */}
+        {Object.keys(substituteTeachers).length > 0 && (
+          <div className="border-t pt-6">
+
+            <h2 className="text-lg font-semibold mb-4">
+              Daily Schedule
+            </h2>
+
+            {Object.keys(substituteTeachers).map((dateStr) => (
+
+              <div key={dateStr} className="bg-gray-50 border rounded-xl p-4 mb-4">
+
+                <div className="flex items-center gap-6 mb-3">
+                  <span className="font-semibold text-gray-700">
+                    {dateStr}
+                  </span>
+
+                  <span className="text-sm">
+                    Do you have class?
+                  </span>
+
+                  <div className="flex gap-4">
+
+                    <label className="flex items-center gap-1">
+                      <input
+                        type="radio"
+                        checked={substituteTeachers[dateStr].hasClass === "yes"}
+                        onChange={() => handleClassRadio(dateStr, "yes")}
+                      />
+                      Yes
                     </label>
-                    <input
-                        type="text"
-                        name="subject"
-                        id="subject"
-                        placeholder="Enter Subject"
-                        className="bg-white px-4 py-2 rounded"
-                        onChange={handleOnChange}
-                        value={formData.subject}
-                        required
-                    />
-                </div>
 
-                <div className="flex flex-col gap-1">
-                    <label htmlFor="body" className="text-sm font-semibold uppercase">
-                        Detailed Reason<sup className="text-pink-500"> *</sup>
+                    <label className="flex items-center gap-1">
+                      <input
+                        type="radio"
+                        checked={substituteTeachers[dateStr].hasClass === "no"}
+                        onChange={() => handleClassRadio(dateStr, "no")}
+                      />
+                      No
                     </label>
-                    <textarea
-                        onChange={handleOnChange}
-                        name="body"
-                        id="body"
-                        cols="40"
-                        rows="10"
-                        placeholder="Enter Detailed Reason"
-                        className="bg-white px-4 py-2 rounded"
-                        value={formData.body}
-                        required
-                    ></textarea>
+
+                  </div>
                 </div>
 
-                <div className="flex flex-row justify-between items-center">
-                    <div className="flex gap-20">
-                        <div className="flex flex-col">
-                            <label className="text-sm font-semibold uppercase">
-                                From<sup className="text-pink-500"> *</sup>
-                            </label>
-                            <DatePicker
-                                selected={startDateObj}
-                                onChange={(date) => {
-                                    setStartDateObj(date);
-                                    setFormData((prev) => ({
-                                        ...prev,
-                                        startDate: formatForApi(date)
-                                    }));
-                                    if (date && (!endDateObj || date > endDateObj)) {
-                                        setEndDateObj(date);
-                                        setFormData((prev) => ({
-                                            ...prev,
-                                            endDate: formatForApi(date)
-                                        }));
-                                    }
-                                }}
-                                dateFormat="dd/MM/yyyy"
-                                placeholderText="dd/mm/yyyy"
-                                minDate={getYesterday()}
-                                className="max-w-max bg-white border text-gray-600 text-sm border-gray-200 px-2 py-1"
-                                required
-                            />
-                        </div>
+                {substituteTeachers[dateStr].hasClass === "yes" && (
+                  <div className="flex flex-col gap-3 ml-2">
 
-                        <div className="flex flex-col">
-                            <label className="text-sm font-semibold uppercase">
-                                To<sup className="text-pink-500"> *</sup>
-                            </label>
-                            <DatePicker
-                                selected={endDateObj}
-                                onChange={(date) => {
-                                    setEndDateObj(date);
-                                    setFormData((prev) => ({
-                                        ...prev,
-                                        endDate: formatForApi(date)
-                                    }));
-                                }}
-                                dateFormat="dd/MM/yyyy"
-                                placeholderText="dd/mm/yyyy"
-                                minDate={startDateObj || getYesterday()}
-                                className="max-w-max bg-white border text-gray-600 text-sm border-gray-200 px-2 py-1"
-                                required
-                            />
-                        </div>
-                    </div>
+                    {substituteTeachers[dateStr].periods.map((period, idx) => (
 
-                    <div className="flex flex-col gap-1">
-                        <label htmlFor="category" className="text-sm font-semibold uppercase">
-                            Leave Type<sup className="text-pink-500"> *</sup>:
-                        </label>
-                        <select
-                            name="category"
-                            id="category"
-                            className="border border-gray-200 px-2 py-1"
-                            onChange={handleOnChange}
-                            value={formData.category}
-                            required
-                        >
-                            <option value="" disabled hidden>
-                                Select Leave Type
-                            </option>
-                            <option value="Emergency Leave">Emergency Leave</option>
-                            <option value="Casual Leave">Casual Leave</option>
-                            <option value="Others">Others</option>
-                        </select>
+                      <div key={idx} className="flex gap-3">
 
-                        {formData.category === "Others" && (
-                            <div className="mt-2">
-                                <input
-                                    type="text"
-                                    name="otherCategory"
-                                    id="otherCategory"
-                                    placeholder="Specify leave type"
-                                    className="bg-white px-4 py-2 rounded w-full"
-                                    onChange={handleOnChange}
-                                    value={formData.otherCategory}
-                                    required
-                                />
-                            </div>
-                        )}
-                    </div>
-                </div>
+                        <input
+                          type="text"
+                          placeholder="Hour"
+                          className="border rounded px-3 py-2 w-1/3"
+                          value={period.hour}
+                          onChange={(e) =>
+                            handlePeriodChange(dateStr, idx, "hour", e.target.value)
+                          }
+                        />
 
-                {Object.keys(substituteTeachers).length > 0 && (
-                    <div className="flex flex-col gap-4 mt-2 border-t pt-4">
-                        <h2 className="text-lg font-semibold uppercase">Daily Schedule</h2>
-                        {Object.keys(substituteTeachers).map((dateStr) => (
-                            <div key={dateStr} className="flex flex-col gap-2 bg-white p-4 rounded border">
-                                <div className="flex items-center gap-6">
-                                    <span className="font-semibold text-gray-700 min-w-[100px]">{dateStr}</span>
-                                    <span>Do you have class on this day?<sup className="text-pink-500"> *</sup></span>
-                                    <div className="flex gap-4">
-                                        <label className="flex items-center gap-1">
-                                            <input
-                                                type="radio"
-                                                name={`class-${dateStr}`}
-                                                checked={substituteTeachers[dateStr].hasClass === "yes"}
-                                                onChange={() => handleClassRadio(dateStr, "yes")}
-                                            />
-                                            Yes
-                                        </label>
-                                        <label className="flex items-center gap-1">
-                                            <input
-                                                type="radio"
-                                                name={`class-${dateStr}`}
-                                                checked={substituteTeachers[dateStr].hasClass === "no"}
-                                                onChange={() => handleClassRadio(dateStr, "no")}
-                                            />
-                                            No
-                                        </label>
-                                    </div>
-                                </div>
+                        <input
+                          type="text"
+                          placeholder="Substitute Teacher"
+                          className="border rounded px-3 py-2 w-2/3"
+                          value={period.substitute}
+                          onChange={(e) =>
+                            handlePeriodChange(dateStr, idx, "substitute", e.target.value)
+                          }
+                        />
 
-                                {substituteTeachers[dateStr].hasClass === "yes" && (
-                                    <div className="flex flex-col gap-3 mt-3 ml-4 border-l-2 pl-4">
-                                        <span className="text-sm font-semibold uppercase">Substitute Details<sup className="text-pink-500"> *</sup></span>
-                                        {substituteTeachers[dateStr].periods.map((period, idx) => (
-                                            <div key={idx} className="flex items-start gap-4">
-                                                <input
-                                                    type="text"
-                                                    placeholder="Hour (e.g., 1st, 9:00 AM)"
-                                                    className="border px-2 py-1 rounded w-1/3"
-                                                    value={period.hour}
-                                                    onChange={(e) => handlePeriodChange(dateStr, idx, "hour", e.target.value)}
-                                                    required
-                                                />
+                      </div>
 
-                                                <div className="relative w-1/2">
-                                                    <input
-                                                        type="text"
-                                                        placeholder="Substitute Teacher Name"
-                                                        className="border px-2 py-1 rounded w-full"
-                                                        value={period.substitute}
-                                                        onChange={(e) => {
-                                                            handlePeriodChange(dateStr, idx, "substitute", e.target.value);
-                                                            setActiveDropdown(`${dateStr}-${idx}`);
-                                                        }}
-                                                        onFocus={() => setActiveDropdown(`${dateStr}-${idx}`)}
-                                                        onBlur={() => {
-                                                            setTimeout(() => setActiveDropdown(null), 200);
-                                                        }}
-                                                        required
-                                                    />
+                    ))}
 
-                                                    {activeDropdown === `${dateStr}-${idx}` && period.substitute.length > 0 && (
-                                                        <div className="absolute z-10 w-full bg-white border border-gray-300 rounded mt-1 max-h-48 overflow-y-auto shadow-lg">
-                                                            {staffList
-                                                                .map(formatStaffName)
-                                                                .filter(name => name.toLowerCase().includes(period.substitute.toLowerCase()))
-                                                                .map((formattedName, sIdx) => (
-                                                                    <div
-                                                                        key={sIdx}
-                                                                        className="px-3 py-2 cursor-pointer hover:bg-gray-100 text-sm"
-                                                                        onMouseDown={(e) => {
-                                                                            e.preventDefault();
-                                                                            handlePeriodChange(dateStr, idx, "substitute", formattedName);
-                                                                            setActiveDropdown(null);
-                                                                        }}
-                                                                    >
-                                                                        {formattedName}
-                                                                    </div>
-                                                                ))
-                                                            }
-                                                            {staffList.filter(staff => formatStaffName(staff).toLowerCase().includes(period.substitute.toLowerCase())).length === 0 && (
-                                                                <div className="px-3 py-2 text-sm text-gray-500 italic">
-                                                                    No matches found
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    )}
-                                                </div>
+                    <button
+                      type="button"
+                      onClick={() => handleAddPeriod(dateStr)}
+                      className="bg-gray-200 px-3 py-1 rounded text-sm w-max"
+                    >
+                      + Add Another Class
+                    </button>
 
-                                                {substituteTeachers[dateStr].periods.length > 1 && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => handleRemovePeriod(dateStr, idx)}
-                                                        className="text-red-500 text-sm font-semibold mt-1"
-                                                    >
-                                                        Remove
-                                                    </button>
-                                                )}
-                                            </div>
-                                        ))}
-                                        <button
-                                            type="button"
-                                            onClick={() => handleAddPeriod(dateStr)}
-                                            className="max-w-max text-sm bg-gray-200 px-3 py-1 rounded mt-1 font-semibold"
-                                        >
-                                            + Add Another Class
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
-                        ))}
-                    </div>
+                  </div>
                 )}
 
-                <div className="flex flex-col gap-2 border-t pt-4">
-                    <label className="text-sm font-semibold uppercase">Attach Documents</label>
-                    <input
-                        type="file"
-                        multiple
-                        onChange={handleFileInput}
-                        className="bg-white px-2 py-1 rounded"
-                    />
-                    {uploading && <div className="text-sm text-gray-600">Uploading...</div>}
+              </div>
 
-                    {attachments.length > 0 && (
-                        <ul className="space-y-1">
-                            {attachments.map((att, idx) => (
-                                <li key={idx} className="flex items-center justify-between bg-white px-3 py-2 rounded border">
-                                    <a href={att.url} target="_blank" rel="noreferrer" className="text-blue-600 underline truncate">
-                                        {att.name}
-                                    </a>
-                                    <button type="button" onClick={() => removeAttachment(idx)} className="text-sm text-red-500 ml-4 font-semibold">
-                                        Remove
-                                    </button>
-                                </li>
-                            ))}
-                        </ul>
-                    )}
+            ))}
 
-                    <div className="mx-auto mt-6">
-                        <button
-                            className={`text-gray-100 font-semibold text-lg px-8 py-2 rounded-md transition-all duration-200 ${!isFormValid() || loading
-                                    ? "bg-rnsit-blue opacity-50 cursor-not-allowed"
-                                    : "bg-rnsit-blue hover:brightness-110"
-                                }`}
-                            disabled={!isFormValid() || loading}
-                        >
-                            {loading ? "Submitting..." : "Submit"}
-                        </button>
-                    </div>
-                </div>
-            </form>
+          </div>
+        )}
+
+        {/* FILE UPLOAD */}
+        <div className="flex flex-col gap-2 border-t pt-4">
+
+  <label className="text-sm font-semibold uppercase">
+    Supporting Documents (Optional)
+  </label>
+
+  <p className="text-sm text-gray-500">
+    Upload medical certificates, appointment letters, or other supporting documents
+  </p>
+
+  <label className="border-2 border-dashed border-blue-400 rounded-2xl p-10 flex flex-col items-center justify-center gap-3 cursor-pointer hover:bg-blue-50 transition">
+
+    {/* FLOATING ICON */}
+    <div className="text-blue-500 text-4xl animate-floatSlow">
+      ⬆
+    </div>
+
+    <p className="text-blue-600 font-semibold">
+      Click to upload
+      <span className="text-gray-500 font-normal"> or drag and drop</span>
+    </p>
+
+    <p className="text-xs text-gray-400">
+      PDF, DOC, DOCX, JPG, PNG (max 5MB)
+    </p>
+
+    {/* REAL INPUT (hidden but functional) */}
+    <input
+      type="file"
+      multiple
+      onChange={handleFileInput}
+      className="hidden"
+    />
+
+  </label>
+
+  {uploading && (
+    <div className="text-sm text-gray-600">
+      Uploading...
+    </div>
+  )}
+
+</div>
+
+        {/* SUBMIT BUTTON */}
+        <div className="flex justify-center pt-6">
+
+          <button
+            className={`px-8 py-3 rounded-xl text-white font-semibold ${
+              !isFormValid() || loading
+                ? "bg-blue-400 cursor-not-allowed"
+                : "bg-blue-600 hover:bg-blue-700"
+            }`}
+            disabled={!isFormValid() || loading}
+          >
+            {loading ? "Submitting..." : "Submit"}
+          </button>
+
         </div>
-    );
+
+      </form>
+    </div>
+  </div>
+);
 };
 
 export default NewLeave;
