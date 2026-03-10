@@ -41,6 +41,32 @@ exports.createLeave = async (req, res) => {
         }
 
         const user = req.user;
+
+        // --- NEW: OVERLAP CHECK ---
+        // Check if the user already has a leave that overlaps with these dates
+        const overlappingLeave = await Leave.findOne({
+            user: user.id,
+            // Exclude leaves that were rejected (or cancelled, if you have that status)
+            status: { $nin: ['Rejected'] }, 
+            $and: [
+                { startDate: { $lte: endDate.toDate() } },
+                { endDate: { $gte: startDate.toDate() } }
+            ]
+        });
+
+        if (overlappingLeave) {
+            return res.status(400).json({
+                success: false,
+                message: "You already have an existing leave application during these dates.",
+                overlappingLeaveDates: {
+                    start: overlappingLeave.startDate,
+                    end: overlappingLeave.endDate,
+                    status: overlappingLeave.status
+                }
+            });
+        }
+        // --- END OVERLAP CHECK ---
+
         const profile = await User.findById(user.id).populate({
             path: "additionalDetails",
             populate: { path: "leaves" }
@@ -63,7 +89,7 @@ exports.createLeave = async (req, res) => {
             });
         }
 
-        // 4. --- NEW: FETCH SUBSTITUTE TEACHER DETAILS FROM DB ---
+        // 4. --- FETCH SUBSTITUTE TEACHER DETAILS FROM DB ---
         // Gather all unique Object IDs from the nested payload
         const uniqueTeacherIds = new Set();
         Object.values(substituteTeachers).forEach(daySchedule => {
@@ -121,7 +147,7 @@ exports.createLeave = async (req, res) => {
             { new: true }
         );
 
-        // 7. --- NEW: TARGETED EMAIL SENDING LOGIC ---
+        // 7. --- TARGETED EMAIL SENDING LOGIC ---
         try {
             const emailPromises = [];
 
