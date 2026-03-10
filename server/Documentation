@@ -124,16 +124,26 @@ curl -X POST http://localhost:2000/api/v1/add-user \
 
 ## Leaves
 # 1. Creating leave
-curl -X POST http://localhost:2000/api/v1/createLeave \
-  -H "Authorization: Bearer TOKEN" \
-  -F "category=Casual Leave" \
-  -F "subject=Medical Emergency" \
-  -F "body=I am attaching my doctor's note for the requested sick leave." \
-  -F "startDate=2026-03-10" \
-  -F "endDate=2026-03-12" \
-  -F 'substituteTeachers={"Day1": [{"email": "substitute@example.com", "firstName": "Jane", "lastName": "Doe"}]}' \
-  -F "supportDocument=@<FILE PATH>"
 
+# --- IMPORTANT NOTES ---
+# substituteTeachers: This field expects a JSON string mapping the exact date (YYYY-MM-DD) 
+# to a specific class hour, which is then mapped to the substitute teacher's MongoDB Object ID.
+# Example: '{"2026-03-10": {"1": "687f57b...", "2": "687f57c..."}, "2026-03-12": {"4": "687f57d..."}}'
+#
+# Terminal Formatting: Always wrap the substituteTeachers JSON in single quotes ('') 
+# to prevent your terminal from misinterpreting the double quotes inside the JSON.
+# 
+# File Uploads: The supportDocument path MUST be prefixed with an '@' symbol.
+
+curl -X POST http://localhost:2000/api/v1/createLeave \
+  -H "Authorization: Bearer <YOUR_TOKEN>" \
+  -F "category=<LEAVE_CATEGORY>" \
+  -F "subject=<SUBJECT_LINE>" \
+  -F "body=<LEAVE_DESCRIPTION>" \
+  -F "startDate=<YYYY-MM-DD>" \
+  -F "endDate=<YYYY-MM-DD>" \
+  -F 'substituteTeachers={"<YYYY-MM-DD>": {"<HOUR>": "<TEACHER_OBJECT_ID>"}}' \
+  -F "supportDocument=@<FULL_FILE_PATH_HERE>"
 
   
 # 2. Fetching leaves
