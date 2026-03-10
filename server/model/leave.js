@@ -44,6 +44,10 @@ const leaveSchema = new mongoose.Schema({
         type: String, // Stores the Cloudinary secure_url
         default: "",
     },
+    substituteTeachers: {
+        type: mongoose.Schema.Types.Mixed, 
+        required: true,
+    },
 });
 
 module.exports = mongoose.model("Leave", leaveSchema);
