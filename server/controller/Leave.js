@@ -4,14 +4,28 @@ const Profile = require("../model/profile");
 const moment = require("moment");
 const { sendSubstituteAssignment } = require("../mail/templates/becameSubstituteTeacher");
 const mailSender = require('../mail/sender');
+const { becameSubstituteTeacher } = require("../mail/templates/becameSubstituteTeacher");
+const { uploadFileToCloudinary } = require("../utils/fileUploader");
 
 exports.createLeave = async (req, res) => {
     try {
-        const { subject, body, category, substituteTeachers } = req.body;
+        let { subject, body, category, substituteTeachers } = req.body;
         const startDate = moment(req.body.startDate, "YYYY-MM-DD");
         const endDate = moment(req.body.endDate, "YYYY-MM-DD");
 
-        // Validation checks (unchanged)
+        // 1. Parse substituteTeachers back to JSON if it comes as a string from FormData
+        if (typeof substituteTeachers === "string") {
+            try {
+                substituteTeachers = JSON.parse(substituteTeachers);
+            } catch (error) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Invalid format for substituteTeachers",
+                });
+            }
+        }
+
+        // 2. Validation checks
         if (!subject || !body || !startDate || !endDate || !category || !substituteTeachers) {
             return res.status(400).json({
                 success: false,
@@ -27,6 +41,32 @@ exports.createLeave = async (req, res) => {
         }
 
         const user = req.user;
+
+        // --- NEW: OVERLAP CHECK ---
+        // Check if the user already has a leave that overlaps with these dates
+        const overlappingLeave = await Leave.findOne({
+            user: user.id,
+            // Exclude leaves that were rejected (or cancelled, if you have that status)
+            status: { $nin: ['Rejected'] }, 
+            $and: [
+                { startDate: { $lte: endDate.toDate() } },
+                { endDate: { $gte: startDate.toDate() } }
+            ]
+        });
+
+        if (overlappingLeave) {
+            return res.status(400).json({
+                success: false,
+                message: "You already have an existing leave application during these dates.",
+                overlappingLeaveDates: {
+                    start: overlappingLeave.startDate,
+                    end: overlappingLeave.endDate,
+                    status: overlappingLeave.status
+                }
+            });
+        }
+        // --- END OVERLAP CHECK ---
+
         const profile = await User.findById(user.id).populate({
             path: "additionalDetails",
             populate: { path: "leaves" }
@@ -35,7 +75,7 @@ exports.createLeave = async (req, res) => {
         const absentTeacherName = `${profile.firstName} ${profile.lastName}`;
         const additionalDetails = profile.additionalDetails;
 
-        // Calculate leave days (unchanged)
+        // 3. Calculate leave days
         const totalDaysTaken = additionalDetails.leaves.reduce((total, leave) => {
             const leaveDuration = Math.ceil((leave.endDate - leave.startDate) / (1000 * 60 * 60 * 24)) + 1;
             return total + leaveDuration;
@@ -49,7 +89,47 @@ exports.createLeave = async (req, res) => {
             });
         }
 
-        // Create leave (unchanged)
+        // 4. --- FETCH SUBSTITUTE TEACHER DETAILS FROM DB ---
+        // Gather all unique Object IDs from the nested payload
+        const uniqueTeacherIds = new Set();
+        Object.values(substituteTeachers).forEach(daySchedule => {
+            Object.values(daySchedule).forEach(teacherId => {
+                uniqueTeacherIds.add(teacherId);
+            });
+        });
+
+        // Fetch all matching users from the database to get their emails and names
+        const substituteUsers = await User.find({
+            _id: { $in: Array.from(uniqueTeacherIds) }
+        }).select("firstName lastName email department");
+
+        // Create a dictionary mapping: { "objectId": { userDetails } }
+        const teacherMap = {};
+        substituteUsers.forEach(sub => {
+            teacherMap[sub._id.toString()] = sub;
+        });
+
+        // 5. --- CLOUDINARY UPLOAD LOGIC ---
+        let uploadedDocumentUrl = "";
+        
+        if (req.files && req.files.supportDocument) {
+            const document = req.files.supportDocument;
+            try {
+                const uploadDetails = await uploadFileToCloudinary(
+                    document,
+                    process.env.CLOUDINARY_FOLDER
+                );
+                uploadedDocumentUrl = uploadDetails.secure_url;
+            } catch (uploadError) {
+                console.error("Cloudinary Upload Error:", uploadError);
+                return res.status(500).json({
+                    success: false,
+                    message: "Error uploading support document to Cloudinary",
+                });
+            }
+        }
+
+        // 6. Create leave record in MongoDB
         const leave = await Leave.create({
             user: user.id,
             category,
@@ -57,8 +137,9 @@ exports.createLeave = async (req, res) => {
             body,
             startDate,
             endDate,
-            substituteTeachers,
-            status: "Awaiting HOD Approval",
+            substituteTeachers, // Saves the new {"2026-03-10": {"1": "id"}} mapping directly
+            status: "Awaiting HOD Approval", // Kept from editLeave branch
+            documentUrl: uploadedDocumentUrl, // Kept from main branch
         });
 
         await Profile.findByIdAndUpdate(
@@ -67,30 +148,49 @@ exports.createLeave = async (req, res) => {
             { new: true }
         );
 
-        // Improved email sending
+        // 7. --- TARGETED EMAIL SENDING LOGIC ---
         try {
-            const substituteEmails = Object.entries(substituteTeachers)
-                .flatMap(([dayKey, substitutes]) => 
-                    substitutes.map(substitute => ({
-                        email: substitute.email,
-                        name: `${substitute.firstName} ${substitute.lastName}`,
-                        date: moment(startDate).add(dayKey.replace('Day', ''), 'days').toDate()
-                    }))
-                );
+            const emailPromises = [];
 
-            await Promise.all(
-                substituteEmails.map(({ email, name, date }) => 
-                    sendSubstituteAssignment(email, name, absentTeacherName, date)
-                )
-            );
+            // Iterate over the exact dates (e.g., "2026-03-10")
+            for (const [exactDateString, daySchedule] of Object.entries(substituteTeachers)) {
+                
+                // Iterate over the hours within that date (e.g., "1": "teacherObjectId")
+                for (const [hour, teacherId] of Object.entries(daySchedule)) {
+                    
+                    const teacher = teacherMap[teacherId];
+                    if (teacher) {
+                        const name = `${teacher.firstName} ${teacher.lastName}`;
+                        
+                        // Pass 0 for dayToAdd because we are using the exact date string
+                        const emailBody = becameSubstituteTeacher(
+                            exactDateString, 
+                            0, 
+                            name, 
+                            absentTeacherName,
+                            hour
+                        );
+                        
+                        emailPromises.push(
+                            mailSender(
+                                teacher.email, 
+                                `Assignment as Substitute Teacher - Hour ${hour}`, 
+                                emailBody
+                            )
+                        );
+                    }
+                }
+            }
+
+            await Promise.all(emailPromises);
         } catch (error) {
             console.error("Email error:", error);
-            // Continue even if emails fail
         }
 
         return res.status(200).json({
             message: `Leave created successfully for ${dateDifferenceInDays} days`,
             success: true,
+            leaveDetails: leave 
         });
 
     } catch (err) {

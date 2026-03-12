@@ -67,17 +67,17 @@ exports.getAllUsers = async (req, res) => {
 
 exports.getuserdept = async (req, res) => {
     try {
-        // Fetch names and departments of all staff except the requesting user
-        const staff = await User.find({
-            accountType: "Staff",
+        // Fetch names and departments of all Staff and HODs except the requesting user
+        const users = await User.find({
+            accountType: { $in: ["Staff", "HOD"] }, // Updated to include both types
             _id: { $ne: req.user.id } // Exclude the current user
         })
             .select("firstName lastName department _id");
 
         return res.status(200).json({
-            message: "Staff department data fetched successfully",
+            message: "Staff and HOD department data fetched successfully",
             data: {
-                users: staff
+                users: users
             },
             success: true,
         });

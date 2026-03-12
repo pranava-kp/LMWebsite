@@ -5,30 +5,16 @@ import { apiConnector } from "../apiConnector";
 
 const { CREATE_LEAVE, GET_ALL_USER_LEAVES, GRANT_USER_LEAVE } = leaveEndpoints;
 
-export function createLeave(
-  subject,
-  body,
-  startDate,
-  endDate,
-  category,
-  substituteTeachers,
-  token
-) {
+export function createLeave(formData, token) {
   return async (dispatch) => {
     const toastId = toast.loading("Loading...");
     dispatch(setLoading(true));
     try {
+      // We now pass formData directly as the bodyData
       const response = await apiConnector(
         "POST",
         CREATE_LEAVE,
-        {
-          subject,
-          body,
-          startDate,
-          endDate,
-          category,
-          substituteTeachers
-        },
+        formData,
         {
           Authorization: `Bearer ${token}`,
         }
@@ -42,11 +28,11 @@ export function createLeave(
 
       toast.success("Leave created successfully");
 
-      // ✅ Return the API response so NewLeave can use result.success
+      // Return the API response so NewLeave can use result.success
       return response.data;
 
     } catch (error) {
-      toast.error("Cannot create leave: " + error);
+      toast.error(error.response?.data?.message || "Cannot create leave");
       console.log("Error in createLeave:", error);
 
       // Return an error object so NewLeave can detect failure
