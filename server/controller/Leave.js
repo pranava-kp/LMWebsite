@@ -138,7 +138,8 @@ exports.createLeave = async (req, res) => {
             startDate,
             endDate,
             substituteTeachers, // Saves the new {"2026-03-10": {"1": "id"}} mapping directly
-            documentUrl: uploadedDocumentUrl, 
+            status: "Awaiting HOD Approval", // Kept from editLeave branch
+            documentUrl: uploadedDocumentUrl, // Kept from main branch
         });
 
         await Profile.findByIdAndUpdate(
@@ -276,7 +277,7 @@ exports.updateLeaveStatus = async (req, res) => {
         const { leaveId, status, rejectionReason } = req.body;
         const user = req.user;
 
-        // Validate input
+        // 1. Basic validation
         if (!leaveId || !status || !['Approved', 'Rejected'].includes(status)) {
             return res.status(400).json({
                 success: false,
@@ -284,15 +285,7 @@ exports.updateLeaveStatus = async (req, res) => {
             });
         }
 
-        // Check if user is authorized (HOD or Principal)
-        if (user.accountType !== 'HOD' && user.accountType !== 'Principal') {
-            return res.status(403).json({
-                success: false,
-                message: "Only HOD or Principal can update leave status",
-            });
-        }
-
-        // Find the leave
+        // 2. Find the leave
         const leave = await Leave.findById(leaveId).populate('user');
         if (!leave) {
             return res.status(404).json({
@@ -301,33 +294,53 @@ exports.updateLeaveStatus = async (req, res) => {
             });
         }
 
-        // Additional check for HOD - can only approve leaves from their department
+        // 3. Determine status transitions based on Role
+        let newStatus = "";
+
         if (user.accountType === 'HOD') {
-            const leaveUser = await User.findById(leave.user);
-            if (user.department !== leaveUser.department) {
+            // HOD specific checks
+            if (user.department !== leave.user.department) {
                 return res.status(403).json({
                     success: false,
-                    message: "HOD can only approve leaves from their own department",
+                    message: "HOD can only process leaves from their own department",
                 });
             }
-        }
 
-        // Check if leave is already processed
-        if (leave.status !== 'Pending') {
-            return res.status(400).json({
+            if (leave.status !== 'Awaiting HOD Approval') {
+                return res.status(400).json({
+                    success: false,
+                    message: `Leave is not in a state to be approved by HOD (Current status: ${leave.status})`,
+                });
+            }
+
+            newStatus = (status === 'Approved') ? 'Awaiting Principal Approval' : 'Rejected by HOD';
+
+        } else if (user.accountType === 'Principal') {
+            // Principal specific checks
+            if (leave.status !== 'Awaiting Principal Approval') {
+                return res.status(400).json({
+                    success: false,
+                    message: `Leave must be approved by HOD first (Current status: ${leave.status})`,
+                });
+            }
+
+            newStatus = (status === 'Approved') ? 'Approved' : 'Rejected by Principal';
+
+        } else {
+            return res.status(403).json({
                 success: false,
-                message: `Leave has already been ${leave.status.toLowerCase()}`,
+                message: "Only HOD or Principal can update leave status",
             });
         }
 
-        // Update leave status
-        leave.status = status;
+        // 4. Update leave record
+        leave.status = newStatus;
         leave.updatedAt = new Date();
-        
-        // Append status update information to the body
+
+        // 5. Append status update audit info
         const processedBy = `${user.accountType} (${user.firstName} ${user.lastName})`;
-        const statusUpdate = `\n\n[Status Update: ${status} by ${processedBy} on ${new Date().toLocaleString()}]`;
-        
+        const statusUpdate = `\n\n[Status Update: ${newStatus} by ${processedBy} on ${new Date().toLocaleString()}]`;
+
         if (status === 'Rejected' && rejectionReason) {
             leave.body += `${statusUpdate}\nReason: ${rejectionReason}`;
         } else {
@@ -338,7 +351,7 @@ exports.updateLeaveStatus = async (req, res) => {
 
         return res.status(200).json({
             success: true,
-            message: `Leave ${status.toLowerCase()} successfully`,
+            message: `Leave ${newStatus.toLowerCase()} successfully`,
             data: {
                 _id: leave._id,
                 status: leave.status,
@@ -357,6 +370,77 @@ exports.updateLeaveStatus = async (req, res) => {
             message: "Internal server error",
             error: process.env.NODE_ENV === "development" ? err.message : undefined,
             success: false,
+        });
+    }
+};
+
+exports.editLeave = async (req, res) => {
+    try {
+        const { leaveId, subject, body, category, startDate, endDate, substituteTeachers } = req.body;
+        const userId = req.user.id;
+
+        // 1. Find the leave
+        const leave = await Leave.findById(leaveId);
+        if (!leave) {
+            return res.status(404).json({
+                success: false,
+                message: "Leave not found"
+            });
+        }
+
+        // 2. Security Check: Does this leave belong to the person trying to edit it?
+        if (leave.user.toString() !== userId) {
+            return res.status(403).json({
+                success: false,
+                message: "You can only edit your own leave requests."
+            });
+        }
+
+        // 3. Status Check: Is it still awaiting HOD approval?
+        if (leave.status !== 'Awaiting HOD Approval') {
+            return res.status(400).json({
+                success: false,
+                message: `You cannot edit this leave because it is already ${leave.status}.`
+            });
+        }
+
+        // 4. Update the fields if they were provided in the request
+        if (subject) leave.subject = subject;
+        if (body) leave.body = body;
+        if (category) leave.category = category;
+        if (substituteTeachers) leave.substituteTeachers = substituteTeachers;
+
+        // 5. Handle date updates carefully
+        if (startDate && endDate) {
+            const newStartDate = moment(startDate, "YYYY-MM-DD");
+            const newEndDate = moment(endDate, "YYYY-MM-DD");
+
+            if (!newStartDate.isValid() || !newEndDate.isValid() || newStartDate.isAfter(newEndDate)) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Invalid leave period provided."
+                });
+            }
+            leave.startDate = newStartDate;
+            leave.endDate = newEndDate;
+        }
+
+        leave.updatedAt = new Date();
+
+        await leave.save();
+
+        return res.status(200).json({
+            success: true,
+            message: "Leave updated successfully",
+            data: leave,
+        });
+
+    } catch (err) {
+        console.error("Edit leave error:", err);
+        return res.status(500).json({
+            success: false,
+            message: "Internal server error",
+            error: process.env.NODE_ENV === "development" ? err.message : undefined,
         });
     }
 };

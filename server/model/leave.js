@@ -21,8 +21,14 @@ const leaveSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ["Pending", "Approved", "Rejected"],
-        default: "Pending",
+        enum: [
+            "Awaiting HOD Approval",
+            "Awaiting Principal Approval",
+            "Approved",
+            "Rejected by HOD",
+            "Rejected by Principal"
+        ],
+        default: "Awaiting HOD Approval",
     },
     startDate:{
         type: Date,

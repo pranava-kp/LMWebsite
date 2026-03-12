@@ -13,7 +13,7 @@ const {
 } = require("../controller/auth");
 const { auth, isStaff, isHOD, isPrincipal, allowRoles } = require("../middleware/auth");
 const { imageUpload, getAllFiles } = require("../controller/File");
-const { createLeave, getAllUserLeaves, updateLeaveStatus } = require("../controller/Leave");
+const { createLeave, getAllUserLeaves, updateLeaveStatus, editLeave } = require("../controller/Leave");
 const { getAllUsers, getuserdept } = require("../controller/User");
 const {
     getMyProfile,
@@ -41,6 +41,7 @@ router.get("/getAllimage", getAllFiles);
 
 // LEAVE ROUTES
 router.post("/createLeave", auth, allowRoles(["Staff", "HOD"]), createLeave);
+router.put("/edit-leave", auth, allowRoles(["Staff", "HOD"]), editLeave);
 // Update the leave routes section to:
 router.get("/get-all-leaves", auth, allowRoles(["Staff", "HOD", "Principal"]), getAllUserLeaves);
 // Change the route to a simple POST endpoint
