@@ -19,6 +19,7 @@ const LeaveDetailsModal = ({ isOpen, onClose, leave, canApproveReject, onProcess
 
   const handleCancelRejectConfirmation = () => {
     setShowRejectionConfirmation(false);
+    setComment("");
   };
 
   const handleApproveClick = () => {
@@ -49,7 +50,6 @@ const LeaveDetailsModal = ({ isOpen, onClose, leave, canApproveReject, onProcess
           )}
           <p>
             <strong>Status:</strong>{" "}
-            {/* Added your HOD/Principal statuses to the Yellow text color! */}
             <span className={`font-bold ${
               ["Pending", "Awaiting HOD Approval", "Awaiting Principal Approval"].includes(leave.status) ? "text-yellow-600" :
               leave.status === "Approved" ? "text-green-600" : "text-red-600"
@@ -62,7 +62,7 @@ const LeaveDetailsModal = ({ isOpen, onClose, leave, canApproveReject, onProcess
           <p><strong>To:</strong> {new Date(leave.endDate).toLocaleDateString('en-GB')}</p>
           <p><strong>Description:</strong> {leave.body}</p>
 
-          {/* --- NEW: COMMENTS AUDIT TRAIL (100% Crash Proof) --- */}
+          {/* --- COMMENTS AUDIT TRAIL --- */}
           {leave?.comments && Array.isArray(leave.comments) && leave.comments.length > 0 && (
             <div className="mt-4 pt-4 border-t border-gray-200">
               <h3 className="font-semibold text-gray-800 mb-2">Comments:</h3>
@@ -76,7 +76,7 @@ const LeaveDetailsModal = ({ isOpen, onClose, leave, canApproveReject, onProcess
                         <strong>{c.role}:</strong> <span className={`font-semibold ${actionColor}`}>{c.action}</span>
                       </p>
                       
-                      {/* 2. The Comment Text (Normal text, no italics) */}
+                      {/* 2. The Comment Text */}
                       {c.commentText && c.commentText.trim() !== "" && (
                         <p className="text-gray-800 m-0 mb-1">
                           "{c.commentText}"
@@ -95,7 +95,7 @@ const LeaveDetailsModal = ({ isOpen, onClose, leave, canApproveReject, onProcess
           )}
         </div>
 
-        {/* --- NEW: COMMENT INPUT BOX --- */}
+        {/* --- COMMENT INPUT BOX --- */}
         {["Pending", "Awaiting HOD Approval", "Awaiting Principal Approval"].includes(leave.status) && canApproveReject && (
           <div className="mt-5 border-t border-gray-200 pt-4">
             <label className="block text-sm font-bold text-gray-700 mb-2">

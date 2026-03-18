@@ -2,59 +2,80 @@ const Leave = require("../model/leave");
 const User = require("../model/user");
 const Profile = require("../model/profile");
 const moment = require("moment");
-const { becameSubstituteTeacher } = require("../mail/templates/becameSubstituteTeacher");
 const mailSender = require("../utils/mailSender");
-// TODO: Ensure you have this import for Cloudinary!
-// const { uploadFileToCloudinary } = require("../utils/imageUploader");
+const { becameSubstituteTeacher } = require("../mail/templates/becameSubstituteTeacher");
+const { uploadFileToCloudinary } = require("../utils/fileUploader");
 
 exports.createLeave = async (req, res) => {
     try {
-        const { subject, body, category, substituteTeachers } = req.body;
+        let { subject, body, category, substituteTeachers } = req.body;
         const startDate = moment(req.body.startDate, "YYYY-MM-DD");
         const endDate = moment(req.body.endDate, "YYYY-MM-DD");
-        
-        if (
-            !subject ||
-            !body ||
-            !startDate ||
-            !endDate ||
-            !category ||
-            !substituteTeachers
-        ) {
+
+        // 1. Parse substituteTeachers back to JSON if it comes as a string from FormData
+        if (typeof substituteTeachers === "string") {
+            try {
+                substituteTeachers = JSON.parse(substituteTeachers);
+            } catch (error) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Invalid format for substituteTeachers",
+                });
+            }
+        }
+
+        // 2. Validation checks
+        if (!subject || !body || !startDate || !endDate || !category || !substituteTeachers) {
             return res.status(400).json({
                 success: false,
                 message: "All fields are required",
             });
         }
 
-        // Checking if dates are valid and if End date is before Start date
-        if (
-            !startDate.isValid() ||
-            !endDate.isValid() ||
-            startDate.isAfter(endDate)
-        ) {
-            return res
-                .status(400)
-                .json({ success: false, message: "Invalid leave period." });
+        if (!startDate.isValid() || !endDate.isValid() || startDate.isAfter(endDate)) {
+            return res.status(400).json({ 
+                success: false, 
+                message: "Invalid leave period." 
+            });
         }
-        
+
         const user = req.user;
 
-        // Checking if Leave count are available at the backend
+        // --- OVERLAP CHECK ---
+        const overlappingLeave = await Leave.findOne({
+            user: user.id,
+            status: { $nin: ['Rejected'] }, 
+            $and: [
+                { startDate: { $lte: endDate.toDate() } },
+                { endDate: { $gte: startDate.toDate() } }
+            ]
+        });
+
+        if (overlappingLeave) {
+            return res.status(400).json({
+                success: false,
+                message: "You already have an existing leave application during these dates.",
+                overlappingLeaveDates: {
+                    start: overlappingLeave.startDate,
+                    end: overlappingLeave.endDate,
+                    status: overlappingLeave.status
+                }
+            });
+        }
+        // --- END OVERLAP CHECK ---
+
         const profile = await User.findById(user.id).populate({
             path: "additionalDetails",
-            populate: {
-                path: "leaves",
-            },
+            populate: { path: "leaves" }
         });
-        const absentTeacherName = `${profile.firstName} ${profile.lastName}`
+
+        const absentTeacherName = `${profile.firstName} ${profile.lastName}`;
         const additionalDetails = profile.additionalDetails;
         console.log("additionalDetails: ", additionalDetails);
 
         // --- LEAVE RULE VALIDATION LOGIC ---
         const requestedDays = endDate.diff(startDate, "days") + 1;
 
-        // Fetch user's existing leaves for the current year (excluding rejected ones)
         const startOfYear = moment().startOf('year').toDate();
         const endOfYear = moment().endOf('year').toDate();
         
@@ -64,7 +85,6 @@ exports.createLeave = async (req, res) => {
             startDate: { $gte: startOfYear, $lte: endOfYear }
         });
 
-        // Tally up what they have taken so far
         let casualThisYear = 0;
         let casualThisMonth = 0;
         let restrictedThisYear = 0;
@@ -74,7 +94,6 @@ exports.createLeave = async (req, res) => {
             
             if (l.category === 'Casual Leave') {
                 casualThisYear += days;
-                // Check if the leave falls in the current calendar month
                 if (moment(l.startDate).isSame(startDate, 'month')) {
                     casualThisMonth += days;
                 }
@@ -84,7 +103,6 @@ exports.createLeave = async (req, res) => {
             }
         });
 
-        // Apply specific rules based on the category requested
         if (category === 'Casual Leave') {
             if (casualThisYear + requestedDays > 12) {
                 return res.status(400).json({ success: false, message: `Yearly limit reached. You only have ${12 - casualThisYear} Casual Leaves left this year.` });
@@ -108,15 +126,11 @@ exports.createLeave = async (req, res) => {
             if (requestedDays > 180) { 
                 return res.status(400).json({ success: false, message: "Maternity Leave cannot exceed 6 months (180 days)." });
             }
-            // If you still want to re-assign 'body', it must be let instead of const above, 
-            // or just rely on the DB text. Assuming it's let in your original code.
-            // body = `[MATERNITY LEAVE - REQUIRES OFFICER APPROVAL]\n` + body;
         }
 
         const dateDifferenceInDays = requestedDays; 
                 
-        // --- FETCH SUBSTITUTE TEACHER DETAILS FROM DB ---
-        // Gather all unique Object IDs from the nested payload
+        // 3. --- FETCH SUBSTITUTE TEACHER DETAILS FROM DB ---
         const uniqueTeacherIds = new Set();
         Object.values(substituteTeachers).forEach(daySchedule => {
             Object.values(daySchedule).forEach(teacherId => {
@@ -124,18 +138,16 @@ exports.createLeave = async (req, res) => {
             });
         });
 
-        // Fetch all matching users from the database to get their emails and names
         const substituteUsers = await User.find({
             _id: { $in: Array.from(uniqueTeacherIds) }
         }).select("firstName lastName email department");
 
-        // Create a dictionary mapping: { "objectId": { userDetails } }
         const teacherMap = {};
         substituteUsers.forEach(sub => {
             teacherMap[sub._id.toString()] = sub;
         });
 
-        // --- CLOUDINARY UPLOAD LOGIC ---
+        // 4. --- CLOUDINARY UPLOAD LOGIC ---
         let uploadedDocumentUrl = "";
         
         if (req.files && req.files.supportDocument) {
@@ -155,7 +167,7 @@ exports.createLeave = async (req, res) => {
             }
         }
 
-        // Create leave record in MongoDB
+        // 5. Create leave record in MongoDB
         const leave = await Leave.create({
             user: user.id,
             category,
@@ -163,77 +175,67 @@ exports.createLeave = async (req, res) => {
             body,
             startDate,
             endDate,
-            substituteTeachers,
+            substituteTeachers, // Saves the new {"2026-03-10": {"1": "id"}} mapping directly
+            status: "Pending", // Kept standard Pending, will be advanced by HOD
             documentUrl: uploadedDocumentUrl // Saving the URL if it exists
         });
 
-        // Push the leave to the user's profile
         await Profile.findByIdAndUpdate(
             additionalDetails._id,
-            {
-                $push: {
-                    leaves: leave._id,
-                },
-            },
+            { $push: { leaves: leave._id } },
             { new: true }
         );
 
-        // Send email to substitute teachers
+        // 6. --- TARGETED EMAIL SENDING LOGIC ---
         try {
-            const extractEmails = (data) => {
-                const emails = [];
-                const days = Object.keys(data);
-                console.log("Days error wala:", days)
-                days.forEach((dayKey, dayIndex) => {
-                    const dayNumber = dayIndex + 1;
-                    data[dayKey].forEach((person) => {
-                        emails.push({
-                            dayToAdd: dayNumber - 1,
-                            name: `${person.firstName} ${person.lastName}`,
-                            email: person.email,
-                        });
-                    });
-                });
-                return emails;
-            };
-            
-            const emails = extractEmails(substituteTeachers);
-            console.log(emails);
+            const emailPromises = [];
 
-            const processMails = async (emails) => {
-                for (const { dayToAdd, name, email } of emails) {
-                    await mailSender(
-                        email,
-                        "Substitute Assignment",
-                        becameSubstituteTeacher(
-                            startDate,
-                            dayToAdd,
-                            name,
-                            `${absentTeacherName}`
-                        )
-                    );
-                    console.log(`Message sent for day ${dayToAdd} to ${email}`);
+            // Iterate over the exact dates (e.g., "2026-03-10")
+            for (const [exactDateString, daySchedule] of Object.entries(substituteTeachers)) {
+                
+                // Iterate over the hours within that date (e.g., "1": "teacherObjectId")
+                for (const [hour, teacherId] of Object.entries(daySchedule)) {
+                    
+                    const teacher = teacherMap[teacherId];
+                    if (teacher) {
+                        const name = `${teacher.firstName} ${teacher.lastName}`;
+                        
+                        // Pass 0 for dayToAdd because we are using the exact date string
+                        const emailBody = becameSubstituteTeacher(
+                            exactDateString, 
+                            0, 
+                            name, 
+                            absentTeacherName,
+                            hour
+                        );
+                        
+                        emailPromises.push(
+                            mailSender(
+                                teacher.email, 
+                                `Assignment as Substitute Teacher - Hour ${hour}`, 
+                                emailBody
+                            )
+                        );
+                    }
                 }
-            };
+            }
 
-            processMails(emails)
+            await Promise.all(emailPromises);
         } catch (error) {
-            console.error("Error occurred while sending email:", error);
-            return res.status(500).json({
-                success: false,
-                message: "Error occurred while sending email",
-                error: error.message,
-            });
+            console.error("Email error:", error);
         }
 
         return res.status(200).json({
             message: `Leave created successfully for ${dateDifferenceInDays} days`,
             success: true,
+            leaveDetails: leave 
         });
+
     } catch (err) {
+        console.error("Leave creation error:", err);
         return res.status(500).json({
             message: "Internal server error",
-            error: err.message,
+            error: process.env.NODE_ENV === "development" ? err.message : undefined,
             success: false,
         });
     }
@@ -242,26 +244,65 @@ exports.createLeave = async (req, res) => {
 exports.getAllUserLeaves = async (req, res) => {
     try {
         const user = req.user;
-        console.log("User id: ", user.id);
-        const leaves = await Leave.find({ user: user.id });
+        const { departments } = req.query; // Optional filter for Principal
+        
+        let query = {};
+
+        // For Staff - only show their own leaves
+        if (user.accountType === 'Staff' || user.accountType === 'Teacher') {
+            query.user = user.id;
+        } 
+        // For HOD - only show leaves from their department
+        else if (user.accountType === 'HOD') {
+            const departmentUsers = await User.find({ department: user.department }, '_id');
+            const userIds = departmentUsers.map(user => user._id);
+            query.user = { $in: userIds };
+        } 
+        // For Principal - optional department filter
+        else if (user.accountType === 'Principal') {
+            if (departments) {
+                const departmentArray = departments.split(','); // Consistent with getAllUsers
+                const departmentUsers = await User.find({ department: { $in: departmentArray } }, '_id');
+                const userIds = departmentUsers.map(user => user._id);
+                query.user = { $in: userIds };
+            }
+        }
+        // For other account types (admin, etc.) - return empty by default
+        else {
+            return res.status(403).json({
+                message: "Unauthorized access",
+                success: false,
+            });
+        }
+
+        const leaves = await Leave.find(query).populate({
+            path: 'user',
+            select: 'firstName lastName department email'
+        }).sort({ createdAt: -1 }); // Newest leaves first
+
         const totalLeavesTaken = leaves.reduce((total, leave) => {
-            const leaveDuration =
-                Math.ceil(
-                    (leave.endDate - leave.startDate) / (1000 * 60 * 60 * 24)
-                ) + 1;
+            const leaveDuration = Math.ceil((leave.endDate - leave.startDate) / (1000 * 60 * 60 * 24)) + 1;
             return total + leaveDuration;
         }, 0);
+
         return res.status(200).json({
-            message: "All leaves fetched successfully",
-            data: {
+            message: "Leaves fetched successfully",
+            data: { 
                 leaves,
                 totalLeavesTaken,
+                departmentInfo: user.accountType === 'HOD' ? 
+                    { department: user.department } : 
+                    user.accountType === 'Principal' ? 
+                    { departments: departments || 'all' } :
+                    null
             },
             success: true,
         });
     } catch (err) {
+        console.error("Get leaves error:", err);
         return res.status(500).json({
             message: "Internal server error",
+            error: process.env.NODE_ENV === "development" ? err.message : undefined,
             success: false,
         });
     }
@@ -269,10 +310,10 @@ exports.getAllUserLeaves = async (req, res) => {
 
 exports.updateLeaveStatus = async (req, res) => {
     try {
-        const { leaveId, status, comment } = req.body;
+        const { leaveId, status, comment, rejectionReason } = req.body;
         const user = req.user;
 
-        // Basic validation
+        // 1. Basic validation
         if (!leaveId || !status || !['Approved', 'Rejected'].includes(status)) {
             return res.status(400).json({
                 success: false,
@@ -280,7 +321,7 @@ exports.updateLeaveStatus = async (req, res) => {
             });
         }
 
-        // Find the leave
+        // 2. Find the leave
         const leave = await Leave.findById(leaveId).populate('user');
         if (!leave) {
             return res.status(404).json({
@@ -289,10 +330,11 @@ exports.updateLeaveStatus = async (req, res) => {
             });
         }
 
-        // Determine status transitions based on Role
+        // 3. Determine status transitions based on Role
         let newStatus = "";
 
         if (user.accountType === 'HOD') {
+            // HOD specific checks
             if (user.department !== leave.user.department) {
                 return res.status(403).json({
                     success: false,
@@ -310,6 +352,7 @@ exports.updateLeaveStatus = async (req, res) => {
             newStatus = (status === 'Approved') ? 'Awaiting Principal Approval' : 'Rejected by HOD';
 
         } else if (user.accountType === 'Principal') {
+            // Principal specific checks
             if (leave.status !== 'Awaiting Principal Approval') {
                 return res.status(400).json({
                     success: false,
@@ -326,12 +369,12 @@ exports.updateLeaveStatus = async (req, res) => {
             });
         }
 
-        // Update leave record
+        // 4. Update leave record
         leave.status = newStatus;
         leave.updatedAt = new Date();
 
-        // --- CLEAN COMMENT LOGIC ---
-        const textToSave = req.body.comment || req.body.rejectionReason || "";
+        // 5. --- CLEAN COMMENT LOGIC ---
+        const textToSave = comment || rejectionReason || "";
 
         let actionWord = newStatus;
         if (newStatus === 'Awaiting Principal Approval') actionWord = 'Approved';
@@ -349,7 +392,7 @@ exports.updateLeaveStatus = async (req, res) => {
 
         await leave.save();
 
-        // --- DEDUCT EARNED LEAVE BALANCE ---
+        // 6. --- DEDUCT EARNED LEAVE BALANCE ---
         if (newStatus === 'Approved' && leave.category === 'Earned Leave') {
             const requestedDays = moment(leave.endDate).diff(moment(leave.startDate), 'days') + 1;
             
@@ -391,7 +434,7 @@ exports.editLeave = async (req, res) => {
         const { leaveId, subject, body, category, startDate, endDate, substituteTeachers } = req.body;
         const userId = req.user.id;
 
-        // Find the leave
+        // 1. Find the leave
         const leave = await Leave.findById(leaveId);
         if (!leave) {
             return res.status(404).json({
@@ -400,7 +443,7 @@ exports.editLeave = async (req, res) => {
             });
         }
 
-        // Security Check
+        // 2. Security Check: Does this leave belong to the person trying to edit it?
         if (leave.user.toString() !== userId) {
             return res.status(403).json({
                 success: false,
@@ -408,7 +451,7 @@ exports.editLeave = async (req, res) => {
             });
         }
 
-        // Status Check
+        // 3. Status Check: Is it still awaiting HOD approval?
         if (leave.status !== 'Awaiting HOD Approval' && leave.status !== 'Pending') {
             return res.status(400).json({
                 success: false,
@@ -416,13 +459,13 @@ exports.editLeave = async (req, res) => {
             });
         }
 
-        // Update the fields
+        // 4. Update the fields if they were provided in the request
         if (subject) leave.subject = subject;
         if (body) leave.body = body;
         if (category) leave.category = category;
         if (substituteTeachers) leave.substituteTeachers = substituteTeachers;
 
-        // Handle date updates carefully
+        // 5. Handle date updates carefully
         if (startDate && endDate) {
             const newStartDate = moment(startDate, "YYYY-MM-DD");
             const newEndDate = moment(endDate, "YYYY-MM-DD");
@@ -456,3 +499,15 @@ exports.editLeave = async (req, res) => {
         });
     }
 };
+
+// # Approve a leave
+// curl -X POST "http://localhost:2000/api/v1/update-leave-status" \
+// -H "Authorization: Bearer PRINCIPAL_OR_HOD_TOKEN" \
+// -H "Content-Type: application/json" \
+// -d '{
+//   "leaveId": "687fe5541b24be76ddbf3061",
+//   "status": "Approved"
+// }'
+
+// # Reject a leave with reason
+// curl -X POST "http://localhost:2000/api/v1/update-leave-status" -H "Authorization: Bearer PRINCIPAL_OR_HOD_TOKEN" -H "Content-Type: application/json" -d '{"leaveId": "687fe5541b24be76ddbf3061", "status": "Rejected", "rejectionReason": "Insufficient substitute coverage"}'

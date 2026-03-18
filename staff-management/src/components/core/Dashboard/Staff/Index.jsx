@@ -2,21 +2,18 @@ import React, { useEffect, useState, useCallback, useMemo, useRef } from "react"
 import { useSelector } from "react-redux";
 import { Link } from "react-router-dom";
 import { IoMdAdd } from "react-icons/io";
-import toast from "react-hot-toast";
+import { toast } from "react-hot-toast";
 
-// Ensure updateLeaveStatus is exported from your leaveAPI
-import { getAllUserLeaves, updateLeaveStatus } from "../../../../services/operations/leaveAPI"; 
+import { getAllUserLeaves, updateLeaveStatus } from "../../../../services/operations/leaveAPI";
 import LeaveCard from "./LeaveCard";
-import ConfirmationModal from "./ConfirmationModal";
-import LeaveDetailsModal from "./LeaveDetailsModal";
-
-// import { getTokenPayload } from "../../../utils/auth"; // <-- Make sure you import this wherever it lives!
+import { getTokenPayload } from "../../../../utils/jwtUtils";
+import ConfirmationModal from "../../../common/ConfirmationModal";
+import LeaveDetailsModal from "../../../common/LeaveDetailsModal";
 
 const Staff = () => {
   const { token } = useSelector((state) => state.auth);
-  
   const [leavesData, setLeavesData] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); 
 
   const [loggedInUserAccountType, setLoggedInUserAccountType] = useState(null);
   const [loggedInUserDepartment, setLoggedInUserDepartment] = useState(null);
@@ -29,7 +26,7 @@ const Staff = () => {
 
   const [showRejectionModal, setShowRejectionModal] = useState(false);
   const [leaveToProcess, setLeaveToProcess] = useState(null);
-  const [comment, setcomment] = useState("");
+  const [comment, setComment] = useState("");
   const [actionType, setActionType] = useState("");
 
   const [showLeaveDetailsModal, setShowLeaveDetailsModal] = useState(false);
@@ -40,8 +37,7 @@ const Staff = () => {
   useEffect(() => {
     if (token) {
       const rawToken = token.replace(/^"|"$/g, "");
-      // Make sure getTokenPayload is defined/imported in this file
-      const userPayload = typeof getTokenPayload === "function" ? getTokenPayload(rawToken) : null; 
+      const userPayload = getTokenPayload(rawToken);
 
       if (userPayload) {
         setLoggedInUserAccountType(userPayload.accountType);
@@ -97,16 +93,19 @@ const Staff = () => {
     }
   };
 
-  // Fixed React hook that was broken during the merge conflict
   useEffect(() => {
     const handleClickOutsideDepartment = (event) => {
       if (departmentDropdownRef.current && !departmentDropdownRef.current.contains(event.target)) {
         setShowDepartmentDropdown(false);
       }
     };
-    
-    document.addEventListener('mousedown', handleClickOutsideDepartment);
-    
+
+    if (showDepartmentDropdown) {
+      document.addEventListener('mousedown', handleClickOutsideDepartment);
+    } else {
+      document.removeEventListener('mousedown', handleClickOutsideDepartment);
+    }
+
     return () => {
       document.removeEventListener('mousedown', handleClickOutsideDepartment);
     };
@@ -140,7 +139,7 @@ const Staff = () => {
       setSelectedLeaveForDetails(null);
 
       setLeaveToProcess(null);
-      setcomment("");
+      setComment("");
 
       toast.success(`Leave ${status.toLowerCase()} successfully`);
     } catch (error) {
@@ -154,7 +153,7 @@ const Staff = () => {
   const handleCancelProcessLeave = () => {
     setShowRejectionModal(false);
     setLeaveToProcess(null);
-    setcomment("");
+    setComment("");
     setIsProcessingLeave(false);
   };
 
@@ -222,7 +221,7 @@ const Staff = () => {
               <label className="text-sm font-medium text-gray-700">Filter by Department:</label>
               <div className="relative" ref={departmentDropdownRef}>
                 <div
-                  className="flex justify-between items-center w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white cursor-pointer focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  className="flex justify-between items-center block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white cursor-pointer focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                   onClick={() => setShowDepartmentDropdown(prev => !prev)}
                 >
                   {selectedDepartments.length === 0
@@ -239,10 +238,26 @@ const Staff = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
                 </div>
-                {/* Dropdown Menu logic here if you have one, currently just triggering state */}
+                {showDepartmentDropdown && (
+                  <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto">
+                    {departments.map(dept => (
+                      <label key={dept} className="flex items-center px-4 py-2 hover:bg-gray-100 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          value={dept}
+                          checked={selectedDepartments.includes(dept)}
+                          onChange={handleDepartmentCheckboxChange}
+                          className="form-checkbox h-4 w-4 text-blue-600 transition duration-150 ease-in-out rounded focus:ring-blue-500"
+                        />
+                        <span className="ml-2 text-gray-700">{dept}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}
+
 
           {(loggedInUserAccountType === "Principal" || loggedInUserAccountType === "Admin") && leavesData && leavesData.leaves.length > 0 && (
             <div className="mt-4">
@@ -335,7 +350,7 @@ const Staff = () => {
               <textarea
                 placeholder="Reason for rejection (optional)"
                 value={comment}
-                onChange={(e) => setcomment(e.target.value)}
+                onChange={(e) => setComment(e.target.value)}
                 className="w-full p-2 border rounded-md focus:ring-blue-500 focus:border-blue-500"
                 rows="3"
                 disabled={isProcessingLeave}
@@ -355,7 +370,7 @@ const Staff = () => {
       {showLeaveDetailsModal && selectedLeaveForDetails && (
         <LeaveDetailsModal
           isOpen={showLeaveDetailsModal}
-          onClose={() => setShowLeaveDetailsModal(false)}
+          onClose={handleCloseLeaveDetailsModal}
           leave={selectedLeaveForDetails}
           canApproveReject={
             (loggedInUserAccountType === "HOD" && ["Pending", "Awaiting HOD Approval"].includes(selectedLeaveForDetails.status)) ||

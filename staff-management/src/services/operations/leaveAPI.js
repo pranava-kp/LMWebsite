@@ -3,33 +3,19 @@ import { setLoading } from "../slices/authSlice";
 import { leaveEndpoints } from "../apis";
 import { apiConnector } from "../apiConnector";
 
-// Make sure UPDATE_LEAVE_STATUS is correctly exported in your leaveEndpoints/apis file!
+// Ensure UPDATE_LEAVE_STATUS is correctly exported in your leaveEndpoints/apis file!
 const { CREATE_LEAVE, GET_ALL_USER_LEAVES, UPDATE_LEAVE_STATUS } = leaveEndpoints;
 
-export function createLeave(
-  subject,
-  body,
-  startDate,
-  endDate,
-  category,
-  substituteTeachers,
-  token
-) {
+export function createLeave(formData, token) {
   return async (dispatch) => {
     const toastId = toast.loading("Loading...");
     dispatch(setLoading(true));
     try {
+      // We pass formData directly as the bodyData to support Cloudinary document uploads
       const response = await apiConnector(
         "POST",
         CREATE_LEAVE,
-        {
-          subject,
-          body,
-          startDate,
-          endDate,
-          category,
-          substituteTeachers,
-        },
+        formData,
         {
           Authorization: `Bearer ${token}`,
         }
@@ -45,6 +31,7 @@ export function createLeave(
 
       // Return the API response so NewLeave can use result.success
       return response.data;
+
     } catch (error) {
       toast.error(error.response?.data?.message || "Cannot create leave");
       console.log("Error in createLeave:", error);
@@ -62,13 +49,14 @@ export async function getAllUserLeaves(token, filters = {}) {
   const toastId = toast.loading("Loading leaves...");
   try {
     const params = {};
-    //console.log(filters.departments);
+    
     if (filters.departments && filters.departments.length > 0) {
       params.departments = filters.departments.join(",");
     }
     if (filters.status) {
       params.status = filters.status;
     }
+    
     // Always send accountTypes as "Staff" as per the requirement
     params.accountTypes = "Staff";
 
@@ -106,18 +94,18 @@ export async function updateLeaveStatus(token, leaveId, status, incomingText = "
     const payload = {
       leaveId,
       status,
-      // FIX: We send the text under BOTH names so the backend cannot possibly miss it.
+      // We send the text under BOTH names so the backend cannot possibly miss it.
       comment: incomingText,
       rejectionReason: incomingText,
     };
 
-    // Completing the missing API call that got cut off by the merge conflict
     const response = await apiConnector(
-      "POST", // Adjust to "PUT" if your backend requires it
+      "POST", 
       UPDATE_LEAVE_STATUS, 
       payload,
       {
-        Authorization: `Bearer ${token}`,
+        // Strip extra quotes from the token just in case
+        Authorization: `Bearer ${token.replace(/^"|"$/g, "")}`,
       }
     );
 

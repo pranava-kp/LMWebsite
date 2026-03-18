@@ -1,0 +1,166 @@
+Documentation
+
+# Create user
+curl -X POST http://localhost:2000/api/v1/signup \
+  -H "Content-Type: application/json" \
+  -d '{
+    "firstName": "John",
+    "lastName": "Doe",
+    "email": "john.doe@example.com",
+    "password": "securePassword123"
+}'
+
+# Deleteing a user
+# This action can be performed only by Admin, Staff or HOD
+
+curl -X DELETE http://localhost:2000/api/v1/delete-user \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"email": "TARGET_MAIL_ID"}'
+
+
+
+# Login
+curl -X POST http://localhost:2000/api/v1/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"john.doe@example.com","password":"securePassword123"}' \
+  -c cookies.txt
+
+# A cookies.txt file must be generated and should countain a Auth Bearer Token
+
+# GetAllUsers Call
+# THe query string can be removed is necessary
+curl -X GET "http://localhost:2000/api/v1/getAllUser?accountTypes=Admin,HOD&departments=CSE,ECE" \
+  -H "Authorization: Bearer YOUR_TOKEN"
+
+# GET Staff Names and associated department
+curl -X GET http://localhost:2000/api/v1/getuserdept \
+  -H "Authorization: Bearer TOKEN"
+
+# Logout test
+curl -X POST http://localhost:2000/api/v1/logout \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: application/json"
+
+
+
+
+# Resetting Passwords
+# There are 2 way through which password can be reset
+# 1. OTP Autentication (Forgot Password)
+curl -X POST http://localhost:2000/api/v1/generate-otp \
+-H "Content-Type: application/json" \
+-d '{"email": "pranavakp2004@gmail.com"}'
+
+
+curl -X POST http://localhost:2000/api/v1/verify-otp \
+-H "Content-Type: application/json" \
+-d '{"email": "pranavakp2004@gmail.com", "otp": "495937"}'
+
+curl -X POST http://localhost:2000/api/v1/reset-password-with-otp \
+-H "Content-Type: application/json" \
+-d '{"email": "pranavakp2004@gmail.com", "newPassword": "87654321"}'
+
+# 2.Change Password for Authenticated Users 
+curl -X POST http://localhost:2000/api/v1/change-password -H "Content-Type: application/json" -d '{
+"email": "pranavakp2004@gmail.com",
+"currentPassword": "12345678",
+"newPassword": "87654321"
+}'
+
+# Getting individual profile details
+# 1. Using token value
+curl -X GET http://localhost:2000/api/v1/profile \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: application/json"
+# 2. Using token stored in a file
+curl -X GET http://localhost:2000/api/v1/profile \
+  -b cookies.txt \
+  -H "Content-Type: application/json"
+# 3. Using the user's email ID
+curl -G "http://localhost:2000/api/v1/profile-by-email?email=<EMAIL>" \
+  -H "Authorization: Bearer TOKEN"
+
+# Udating Profiles
+# 1. Update by Staff
+# This api can only be called once iff there are null or undefined fields in the DB entry. Those fields can be updated
+curl -X PATCH http://localhost:2000/api/v1/update-own-profile   -H "Content-Type: application/json"   -H "Authorization: Bearer TOKEN"   -d '{
+    "employeeId": "96",
+    "phone": "7019367895",
+    "gender": "Female"
+  }'
+# 2. Update by admin
+# This call can be made only by admin or Principal, allows changes to all fields
+# Target is identified using the id field
+curl -X PATCH http://localhost:2000/api/v1/admin-update-profile \
+  -H "Authorization: Bearer TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "id": "687b3ad366c8e63a8d6fe0cb",
+    "email": "1rn22cs118.pranavakp@rnsit.ac.in",
+    "firstName": "Pranava",
+    "lastName": "K P",
+    "accountType": "Staff",
+    "department": "ME",
+    "employeeId": "96",
+    "gender": "Female",
+    "phone": "7019367895"
+  }'
+
+# Call to create new user
+# Works only using Principal, Admin, HoD type bearer tokens
+curl -X POST http://localhost:2000/api/v1/add-user \
+-H "Authorization: Bearer TOKEN" \
+-H "Content-Type: application/json" \
+-d '{
+    "firstName": "X",
+    "lastName": "Y",
+    "email": "pranavakp2004+csehod@gmail.com",
+    "department": "CSE",
+    "accountType": "HOD"
+}'
+
+
+
+## Leaves
+# 1. Creating leave
+
+# --- IMPORTANT NOTES ---
+# substituteTeachers: This field expects a JSON string mapping the exact date (YYYY-MM-DD) 
+# to a specific class hour, which is then mapped to the substitute teacher's MongoDB Object ID.
+# Example: '{"2026-03-10": {"1": "687f57b...", "2": "687f57c..."}, "2026-03-12": {"4": "687f57d..."}}'
+#
+# Terminal Formatting: Always wrap the substituteTeachers JSON in single quotes ('') 
+# to prevent your terminal from misinterpreting the double quotes inside the JSON.
+# 
+# File Uploads: The supportDocument path MUST be prefixed with an '@' symbol.
+
+curl -X POST http://localhost:2000/api/v1/createLeave \
+  -H "Authorization: Bearer <YOUR_TOKEN>" \
+  -F "category=<LEAVE_CATEGORY>" \
+  -F "subject=<SUBJECT_LINE>" \
+  -F "body=<LEAVE_DESCRIPTION>" \
+  -F "startDate=<YYYY-MM-DD>" \
+  -F "endDate=<YYYY-MM-DD>" \
+  -F 'substituteTeachers={"<YYYY-MM-DD>": {"<HOUR>": "<TEACHER_OBJECT_ID>"}}' \
+  -F "supportDocument=@<FULL_FILE_PATH_HERE>"
+
+  
+# 2. Fetching leaves
+# The query string is optional. if the bearer token belongs to Princiapl, all leaves are fetched by default, howeer, if a HOD sends a request only leaves of that department will be returned. If a Staff makes the call only leave requests by that user will be returned
+curl -X GET "http://localhost:2000/api/v1/get-all-leaves?departments=ECE" \
+-H "Authorization: Bearer TOKEN"
+
+# 3. Updating leave status 
+# This call can be made only by a HOD or Principal
+# i. Approving
+curl -X POST "http://localhost:2000/api/v1/update-leave-status" \
+-H "Authorization: Bearer TOKEN" \
+-H "Content-Type: application/json" \
+-d '{
+  "leaveId": "6880c22936e6c74e4eefe6eb",
+  "status": "Approved"
+}'
+
+# ii. Rejecting
+curl -X POST "http://localhost:2000/api/v1/update-leave-status" -H "Authorization: Bearer TOKEN" -H "Content-Type: application/json" -d '{"leaveId": "6880c16c36e6c74e4eefe6cd", "status": "Rejected", "rejectionReason": "Insufficient substitute coverage"}'

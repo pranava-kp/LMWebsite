@@ -13,6 +13,7 @@ const userSchema = new mongoose.Schema(
         email: {
             type: String,
             required: true,
+            unique: true,
         },
         password: {
             type: String,
@@ -25,25 +26,24 @@ const userSchema = new mongoose.Schema(
         accountType: {
             type: String,
             enum: ["Admin", "Staff", "HOD", "Principal"],
-            default: "Staff",
+            default: "Admin",
         },
-        // image: {
-        //     type: String,
-        //     required: true,
-        // },
-        hiringDate:{
+        hiringDate: {
             type: Date,
             default: Date.now,
         },
-        department:{
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "Department",
+        department: {
+            type: String,
+            enum: ["CSE", "ISE", "ME", "ECE"],
+            default: null
         },
         token: {
             type: String,
+            default: null
         },
         expiryTime: {
             type: Date,
+            default: null
         },
         phone: {
             type: String,
@@ -51,7 +51,7 @@ const userSchema = new mongoose.Schema(
         },
         gender: {
             type: String,
-            enum: ["Male", "Female", "Other","Prefer not to say"],
+            enum: ["Male", "Female", "Other", "Prefer not to say"],
             default: null
         },
         employeeId: {
