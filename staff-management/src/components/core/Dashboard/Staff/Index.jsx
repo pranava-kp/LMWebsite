@@ -1,64 +1,373 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useSelector } from "react-redux";
-import { getAllUserLeaves } from "../../../../services/operations/leaveAPI";
-import LeaveCard from "./LeaveCard";
-import { IoMdAdd } from "react-icons/io";
 import { Link } from "react-router-dom";
+import { IoMdAdd } from "react-icons/io";
+import toast from "react-hot-toast";
+
+// Ensure updateLeaveStatus is exported from your leaveAPI
+import { getAllUserLeaves, updateLeaveStatus } from "../../../../services/operations/leaveAPI"; 
+import LeaveCard from "./LeaveCard";
+import ConfirmationModal from "./ConfirmationModal";
+import LeaveDetailsModal from "./LeaveDetailsModal";
+
+// import { getTokenPayload } from "../../../utils/auth"; // <-- Make sure you import this wherever it lives!
 
 const Staff = () => {
-    const { token } = useSelector((state) => state.auth);
-    const [leavesData, setLeavesData] = useState(null);
-    const [loading, setLoading] = useState(false);
+  const { token } = useSelector((state) => state.auth);
+  
+  const [leavesData, setLeavesData] = useState(null);
+  const [loading, setLoading] = useState(false);
 
-    const fetchLeavesTaken = async () => {
-        try {
-            const response = await getAllUserLeaves(token);
-            setLeavesData(response);
-            console.log("All user leaves: ", response.totalLeavesTaken);
-        } catch (e) {
-            console.log("Error in fetching leaves: ", e);
-        }
-    };
+  const [loggedInUserAccountType, setLoggedInUserAccountType] = useState(null);
+  const [loggedInUserDepartment, setLoggedInUserDepartment] = useState(null);
+  const [authDataReady, setAuthDataReady] = useState(false);
 
-    useEffect(() => {
-        setLoading(true);
-        fetchLeavesTaken();
-        setLoading(false);
-    }, []);
+  const departments = useMemo(() => ["CSE", "ISE", "ME", "ECE"], []);
+  const [selectedDepartments, setSelectedDepartments] = useState([]);
+  const [showDepartmentDropdown, setShowDepartmentDropdown] = useState(false);
+  const departmentDropdownRef = useRef(null);
 
-    if (loading) {
-        return <div>Loading...</div>;
+  const [showRejectionModal, setShowRejectionModal] = useState(false);
+  const [leaveToProcess, setLeaveToProcess] = useState(null);
+  const [comment, setcomment] = useState("");
+  const [actionType, setActionType] = useState("");
+
+  const [showLeaveDetailsModal, setShowLeaveDetailsModal] = useState(false);
+  const [selectedLeaveForDetails, setSelectedLeaveForDetails] = useState(null);
+
+  const [isProcessingLeave, setIsProcessingLeave] = useState(false);
+
+  useEffect(() => {
+    if (token) {
+      const rawToken = token.replace(/^"|"$/g, "");
+      // Make sure getTokenPayload is defined/imported in this file
+      const userPayload = typeof getTokenPayload === "function" ? getTokenPayload(rawToken) : null; 
+
+      if (userPayload) {
+        setLoggedInUserAccountType(userPayload.accountType);
+        setLoggedInUserDepartment(userPayload.department || null);
+        setAuthDataReady(true);
+      } else {
+        setAuthDataReady(false);
+        toast.error("Invalid token payload. Please log in again.");
+      }
+    } else {
+      setAuthDataReady(false);
+      toast.error("Authentication token missing. Please log in.");
     }
-    return (
-        <div className="flex flex-col md:flex-row gap-5 w-full">
-            <div className=" w-full flex flex-col gap-8">
-                <div className=" flex justify-between items-center">
-                    <Link
-                        to="/dashboard/new-leave"
-                        className="border w-[145px] p-2 bg-rnsit-blue text-gray-100 font-semibold flex items-center rounded-md gap-1"
-                    >
-                        New Leave
-                        <IoMdAdd className=" text-xl font-bold" />
-                    </Link>
-                    <p className=" w-full text-end">
-                        Total leaves Taken:{" "}
-                        {leavesData ? leavesData.totalLeavesTaken : 0}
-                    </p>
-                </div>
-                <div>
-                    {leavesData &&
-                        leavesData.leaves.map((leave) => {
-                            return (
-                                // LEAVE KE CARD BNAANE HAI ACCORDINGLY
-                                // SAARE VARIETY KE LIYE,
+  }, [token]);
 
-                                <LeaveCard leave={leave} key={leave._id} />
-                            );
-                        })}
-                </div>
-            </div>
+  const fetchLeavesTaken = useCallback(async () => {
+    if (!authDataReady) {
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      let filters = {};
+      if (loggedInUserAccountType === "HOD") {
+        filters.departments = [loggedInUserDepartment];
+        filters.status = "Pending";
+      } else if (loggedInUserAccountType === "Principal" || loggedInUserAccountType === "Admin") {
+        filters.departments = selectedDepartments.length > 0 ? selectedDepartments : departments;
+        filters.status = "Pending";
+      }
+      const response = await getAllUserLeaves(token, filters);
+      setLeavesData(response);
+      console.log("Fetched leaves data: ", response);
+    } catch (e) {
+      console.log("Error in fetching leaves: ", e);
+      setLeavesData(null); // Clear data on error
+    } finally {
+      setLoading(false);
+    }
+  }, [token, authDataReady, loggedInUserAccountType, loggedInUserDepartment, selectedDepartments, departments]);
+
+  useEffect(() => {
+    fetchLeavesTaken();
+  }, [fetchLeavesTaken]);
+
+  const handleDepartmentCheckboxChange = (e) => {
+    const { value, checked } = e.target;
+    if (checked) {
+      setSelectedDepartments(prev => [...prev, value]);
+    } else {
+      setSelectedDepartments(prev => prev.filter(dept => dept !== value));
+    }
+  };
+
+  // Fixed React hook that was broken during the merge conflict
+  useEffect(() => {
+    const handleClickOutsideDepartment = (event) => {
+      if (departmentDropdownRef.current && !departmentDropdownRef.current.contains(event.target)) {
+        setShowDepartmentDropdown(false);
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutsideDepartment);
+    
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutsideDepartment);
+    };
+  }, [showDepartmentDropdown]);
+
+  const handleProcessLeave = (leave, type, reason = "", fromDetailsModal = false) => {
+    setIsProcessingLeave(true);
+    setLeaveToProcess(leave);
+    setActionType(type);
+
+    if (type === "reject") {
+      if (reason || fromDetailsModal) {
+        handleConfirmProcessLeave(leave, type, reason);
+      } else {
+        setShowRejectionModal(true);
+      }
+    } else {
+      handleConfirmProcessLeave(leave, type, reason); 
+    }
+  };
+
+  const handleConfirmProcessLeave = async (leave, type, reason = "") => {
+    try {
+      const status = type === "approve" ? "Approved" : "Rejected";
+      await updateLeaveStatus(token, leave._id, status, reason);
+
+      await fetchLeavesTaken();
+
+      setShowRejectionModal(false);
+      setShowLeaveDetailsModal(false);
+      setSelectedLeaveForDetails(null);
+
+      setLeaveToProcess(null);
+      setcomment("");
+
+      toast.success(`Leave ${status.toLowerCase()} successfully`);
+    } catch (error) {
+      console.error("Error processing leave:", error);
+      toast.error(`Failed to ${type} leave. Please try again.`);
+    } finally {
+      setIsProcessingLeave(false);
+    }
+  };
+
+  const handleCancelProcessLeave = () => {
+    setShowRejectionModal(false);
+    setLeaveToProcess(null);
+    setcomment("");
+    setIsProcessingLeave(false);
+  };
+
+  const handleViewLeaveDetails = (leave) => {
+    setSelectedLeaveForDetails(leave);
+    setShowLeaveDetailsModal(true);
+  };
+
+  const handleCloseLeaveDetailsModal = () => {
+    setShowLeaveDetailsModal(false);
+    setSelectedLeaveForDetails(null);
+  };
+
+  if (loading) {
+    return <div className="p-4 text-center">Loading leaves...</div>;
+  }
+  
+  if (!authDataReady) {
+    return <div className="p-4 text-center text-red-500">Authentication data not ready. Please log in.</div>;
+  }
+
+  const leavesGreaterThanTwoWeeks = [];
+  const otherLeaves = [];
+
+  if (leavesData && (loggedInUserAccountType === "Principal" || loggedInUserAccountType === "Admin")) {
+    leavesData.leaves.forEach(leave => {
+      const startDate = new Date(leave.startDate);
+      const endDate = new Date(leave.endDate);
+      const diffTime = Math.abs(endDate - startDate);
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+      if (diffDays > 14) {
+        leavesGreaterThanTwoWeeks.push(leave);
+      } else {
+        otherLeaves.push(leave);
+      }
+    });
+  }
+
+  return (
+    <div className="flex flex-col border bg-gray-100 gap-8 w-full rounded-md p-6">
+      
+      {/* Merged Header section: Dashboard title + New Leave Button + Total Count */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center border-b-2 border-gray-300 pb-4 gap-4 w-full">
+        <p className="text-xl font-semibold">Dashboard</p>
+        
+        <div className="flex items-center gap-6">
+           <p className="text-gray-700 font-medium">
+             Total leaves Taken: {leavesData ? leavesData.totalLeavesTaken : 0}
+           </p>
+           <Link
+             to="/dashboard/new-leave"
+             className="border w-[145px] p-2 bg-rnsit-blue text-gray-100 font-semibold flex justify-center items-center rounded-md gap-1 bg-blue-600 hover:bg-blue-700 transition-colors"
+           >
+             New Leave
+             <IoMdAdd className="text-xl font-bold" />
+           </Link>
         </div>
-    );
+      </div>
+
+      <div className="flex flex-col md:flex-row gap-5 w-full">
+        <div className="w-full flex flex-col gap-8">
+          {(loggedInUserAccountType === "Principal" || loggedInUserAccountType === "Admin") && (
+            <div className="flex flex-col gap-1 min-w-[200px]">
+              <label className="text-sm font-medium text-gray-700">Filter by Department:</label>
+              <div className="relative" ref={departmentDropdownRef}>
+                <div
+                  className="flex justify-between items-center w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm bg-white cursor-pointer focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  onClick={() => setShowDepartmentDropdown(prev => !prev)}
+                >
+                  {selectedDepartments.length === 0
+                    ? "All Departments"
+                    : selectedDepartments.join(", ")
+                  }
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className={`h-4 w-4 transform transition-transform duration-200 ${showDepartmentDropdown ? 'rotate-180' : 'rotate-0'}`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+                {/* Dropdown Menu logic here if you have one, currently just triggering state */}
+              </div>
+            </div>
+          )}
+
+          {(loggedInUserAccountType === "Principal" || loggedInUserAccountType === "Admin") && leavesData && leavesData.leaves.length > 0 && (
+            <div className="mt-4">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Leaves &gt; 2 Weeks (High Priority)</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {leavesGreaterThanTwoWeeks.length > 0 ? (
+                  leavesGreaterThanTwoWeeks.map((leave) => (
+                    <LeaveCard
+                      leave={leave}
+                      key={leave._id}
+                      canApproveReject={(loggedInUserAccountType === "HOD" && ["Pending", "Awaiting HOD Approval"].includes(leave.status)) || (loggedInUserAccountType === "Principal" && leave.status === "Awaiting Principal Approval") || loggedInUserAccountType === "Admin"}
+                      onProcessLeave={handleProcessLeave}
+                      onViewDetails={handleViewLeaveDetails}
+                      isProcessing={isProcessingLeave} 
+                    />
+                  ))
+                ) : (
+                  <p className="text-gray-600 col-span-full">No high priority leaves.</p>
+                )}
+              </div>
+
+              <h3 className="text-lg font-semibold text-gray-800 mt-8 mb-4">Other Leaves</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {otherLeaves.length > 0 ? (
+                  otherLeaves.map((leave) => (
+                    <LeaveCard
+                      leave={leave}
+                      key={leave._id}
+                      canApproveReject={(loggedInUserAccountType === "HOD" && ["Pending", "Awaiting HOD Approval"].includes(leave.status)) || (loggedInUserAccountType === "Principal" && leave.status === "Awaiting Principal Approval") || loggedInUserAccountType === "Admin"}
+                      onProcessLeave={handleProcessLeave}
+                      onViewDetails={handleViewLeaveDetails}
+                      isProcessing={isProcessingLeave}
+                    />
+                  ))
+                ) : (
+                  <p className="text-gray-600 col-span-full">No other leaves.</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {loggedInUserAccountType === "HOD" && leavesData && leavesData.leaves.length > 0 && (
+            <div className="mt-4">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Leaves to Review in Your Department</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {leavesData.leaves.map((leave) => (
+                  <LeaveCard
+                    leave={leave}
+                    key={leave._id}
+                    canApproveReject={(loggedInUserAccountType === "HOD" && ["Pending", "Awaiting HOD Approval"].includes(leave.status)) || (loggedInUserAccountType === "Principal" && leave.status === "Awaiting Principal Approval") || loggedInUserAccountType === "Admin"}
+                    onProcessLeave={handleProcessLeave}
+                    onViewDetails={handleViewLeaveDetails}
+                    isProcessing={isProcessingLeave}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {loggedInUserAccountType === "Staff" && leavesData && leavesData.leaves.length > 0 && (
+            <div className="mt-4">
+              <h3 className="text-lg font-semibold text-gray-800 mb-4">Your Applied Leaves</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {leavesData.leaves.map((leave) => (
+                  <LeaveCard
+                    leave={leave}
+                    key={leave._id}
+                    canApproveReject={false}
+                    onViewDetails={handleViewLeaveDetails}
+                    isProcessing={isProcessingLeave}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {leavesData && leavesData.leaves.length === 0 && (
+            <div className="text-center text-gray-600 mt-8">No leaves to display based on current filters/role.</div>
+          )}
+        </div>
+      </div>
+
+      {showRejectionModal && (
+        <ConfirmationModal
+          isOpen={showRejectionModal}
+          text1="Reject Leave Request"
+          text2={
+            <div className="flex flex-col gap-2">
+              <p>Are you sure you want to reject this leave request?</p>
+              <textarea
+                placeholder="Reason for rejection (optional)"
+                value={comment}
+                onChange={(e) => setcomment(e.target.value)}
+                className="w-full p-2 border rounded-md focus:ring-blue-500 focus:border-blue-500"
+                rows="3"
+                disabled={isProcessingLeave}
+              />
+            </div>
+          }
+          btn1Text="Cancel"
+          btn2Text="Confirm Reject"
+          btn1Handler={handleCancelProcessLeave}
+          btn2Handler={() => {
+            handleConfirmProcessLeave(leaveToProcess, "reject", comment || "");
+          }}
+          isProcessing={isProcessingLeave}
+        />
+      )}
+
+      {showLeaveDetailsModal && selectedLeaveForDetails && (
+        <LeaveDetailsModal
+          isOpen={showLeaveDetailsModal}
+          onClose={() => setShowLeaveDetailsModal(false)}
+          leave={selectedLeaveForDetails}
+          canApproveReject={
+            (loggedInUserAccountType === "HOD" && ["Pending", "Awaiting HOD Approval"].includes(selectedLeaveForDetails.status)) ||
+            (loggedInUserAccountType === "Principal" && selectedLeaveForDetails.status === "Awaiting Principal Approval") ||
+            (loggedInUserAccountType === "Admin" && ["Pending", "Awaiting HOD Approval", "Awaiting Principal Approval"].includes(selectedLeaveForDetails.status))
+          }
+          onProcessLeave={handleProcessLeave}
+          isProcessing={isProcessingLeave}
+        />
+      )}
+    </div>
+  );
 };
 
 export default Staff;
