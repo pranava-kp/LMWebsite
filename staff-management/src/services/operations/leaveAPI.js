@@ -80,13 +80,15 @@ export async function getAllUserLeaves(token, filters = {}) {
     toast.dismiss(toastId);
   }
 }
-export async function updateLeaveStatus(token, leaveId, status, rejectionReason = "") {
+export async function updateLeaveStatus(token, leaveId, status, incomingText = "") {
   const toastId = toast.loading("Updating leave status...");
   try {
     const payload = {
       leaveId,
       status,
-      rejectionReason: status === "Rejected" ? rejectionReason : undefined
+      //  We send the comment under BOTH names so the backend cannot possibly miss it.
+      comment: incomingText,
+      rejectionReason: incomingText 
     };
     // console.log("Sending payload:", payload); // Debug payload
     const response = await apiConnector(

@@ -54,6 +54,16 @@ const leaveSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.Mixed, 
         required: true,
     },
-});
+    //comments array
+    comments: [
+        {
+            role: { type: String },
+            action: { type: String },
+            commentText: { type: String },
+            timestamp: { type: Date, default: Date.now }
+        }
+    ],
+    
+}, { timestamps: true });
 
 module.exports = mongoose.model("Leave", leaveSchema);

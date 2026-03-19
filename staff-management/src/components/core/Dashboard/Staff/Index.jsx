@@ -24,7 +24,7 @@ const Staff = () => {
 
   const [showRejectionModal, setShowRejectionModal] = useState(false);
   const [leaveToProcess, setLeaveToProcess] = useState(null);
-  const [rejectionReason, setRejectionReason] = useState("");
+  const [comment, setcomment] = useState("");
   const [actionType, setActionType] = useState("");
 
   const [showLeaveDetailsModal, setShowLeaveDetailsModal] = useState(false);
@@ -121,7 +121,8 @@ const Staff = () => {
         setShowRejectionModal(true);
       }
     } else {
-      handleConfirmProcessLeave(leave, type);
+      // FIX: Added 'reason' here so Approvals send the comment
+      handleConfirmProcessLeave(leave, type, reason); 
     }
   };
 
@@ -139,7 +140,7 @@ const Staff = () => {
       setSelectedLeaveForDetails(null);
 
       setLeaveToProcess(null);
-      setRejectionReason("");
+      setcomment("");
 
       toast.success(`Leave ${status.toLowerCase()} successfully`);
     } catch (error) {
@@ -153,7 +154,7 @@ const Staff = () => {
   const handleCancelProcessLeave = () => {
     setShowRejectionModal(false);
     setLeaveToProcess(null);
-    setRejectionReason("");
+    setcomment("");
     setIsProcessingLeave(false);
   };
 
@@ -255,7 +256,7 @@ const Staff = () => {
                     <LeaveCard
                       leave={leave}
                       key={leave._id}
-                      canApproveReject={true}
+                      canApproveReject={(loggedInUserAccountType === "HOD" && ["Pending", "Awaiting HOD Approval"].includes(leave.status)) || (loggedInUserAccountType === "Principal" && leave.status === "Awaiting Principal Approval") || loggedInUserAccountType === "Admin"}
                       onProcessLeave={handleProcessLeave}
                       onViewDetails={handleViewLeaveDetails}
                       isProcessing={isProcessingLeave} // Pass processing state
@@ -273,7 +274,7 @@ const Staff = () => {
                     <LeaveCard
                       leave={leave}
                       key={leave._id}
-                      canApproveReject={true}
+                      canApproveReject={(loggedInUserAccountType === "HOD" && ["Pending", "Awaiting HOD Approval"].includes(leave.status)) || (loggedInUserAccountType === "Principal" && leave.status === "Awaiting Principal Approval") || loggedInUserAccountType === "Admin"}
                       onProcessLeave={handleProcessLeave}
                       onViewDetails={handleViewLeaveDetails}
                       isProcessing={isProcessingLeave}
@@ -294,7 +295,7 @@ const Staff = () => {
                   <LeaveCard
                     leave={leave}
                     key={leave._id}
-                    canApproveReject={true}
+                    canApproveReject={(loggedInUserAccountType === "HOD" && ["Pending", "Awaiting HOD Approval"].includes(leave.status)) || (loggedInUserAccountType === "Principal" && leave.status === "Awaiting Principal Approval") || loggedInUserAccountType === "Admin"}
                     onProcessLeave={handleProcessLeave}
                     onViewDetails={handleViewLeaveDetails}
                     isProcessing={isProcessingLeave}
@@ -337,8 +338,8 @@ const Staff = () => {
               <p>Are you sure you want to reject this leave request?</p>
               <textarea
                 placeholder="Reason for rejection (optional)"
-                value={rejectionReason}
-                onChange={(e) => setRejectionReason(e.target.value)}
+                value={comment}
+                onChange={(e) => setcomment(e.target.value)}
                 className="w-full p-2 border rounded-md focus:ring-blue-500 focus:border-blue-500"
                 rows="3"
                 disabled={isProcessingLeave}
@@ -349,8 +350,8 @@ const Staff = () => {
           btn2Text="Confirm Reject"
           btn1Handler={handleCancelProcessLeave}
           btn2Handler={() => {
-            console.log("Confirm Reject from Index.jsx", { leaveToProcess, rejectionReason, isProcessingLeave }); // Debug log
-            handleConfirmProcessLeave(leaveToProcess, "reject", rejectionReason || "");
+            console.log("Confirm Reject from Index.jsx", { leaveToProcess, comment, isProcessingLeave }); // Debug log
+            handleConfirmProcessLeave(leaveToProcess, "reject", comment || "");
           }}
           isProcessing={isProcessingLeave}
         />
@@ -358,15 +359,20 @@ const Staff = () => {
 
 
       {showLeaveDetailsModal && selectedLeaveForDetails && (
-        <LeaveDetailsModal
-          isOpen={showLeaveDetailsModal}
-          onClose={handleCloseLeaveDetailsModal}
-          leave={selectedLeaveForDetails}
-          canApproveReject={loggedInUserAccountType === "HOD" || loggedInUserAccountType === "Principal" || loggedInUserAccountType === "Admin"}
-          onProcessLeave={handleProcessLeave}
-          isProcessing={isProcessingLeave}
-        />
-      )}
+          <LeaveDetailsModal
+            isOpen={showLeaveDetailsModal}
+            onClose={() => setShowLeaveDetailsModal(false)}
+            leave={selectedLeaveForDetails}
+            //  Smart visibility! Only shows the box if it is ACTUALLY their turn.
+            canApproveReject={
+              (loggedInUserAccountType === "HOD" && ["Pending", "Awaiting HOD Approval"].includes(selectedLeaveForDetails.status)) ||
+              (loggedInUserAccountType === "Principal" && selectedLeaveForDetails.status === "Awaiting Principal Approval") ||
+              (loggedInUserAccountType === "Admin" && ["Pending", "Awaiting HOD Approval", "Awaiting Principal Approval"].includes(selectedLeaveForDetails.status))
+            }
+            onProcessLeave={handleProcessLeave}
+            isProcessing={isProcessingLeave}
+          />
+        )}
     </div>
   );
 };

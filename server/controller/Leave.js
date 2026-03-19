@@ -324,7 +324,7 @@ exports.getAllUserLeaves = async (req, res) => {
 
 exports.updateLeaveStatus = async (req, res) => {
     try {
-        const { leaveId, status, rejectionReason } = req.body;
+        const { leaveId, status, comment } = req.body;
         const user = req.user;
 
         // 1. Basic validation
@@ -387,17 +387,31 @@ exports.updateLeaveStatus = async (req, res) => {
         leave.status = newStatus;
         leave.updatedAt = new Date();
 
-        // 5. Append status update audit info
-        const processedBy = `${user.accountType} (${user.firstName} ${user.lastName})`;
-        const statusUpdate = `\n\n[Status Update: ${newStatus} by ${processedBy} on ${new Date().toLocaleString()}]`;
+        
+       
+       // --- CLEAN COMMENT LOGIC ---
+        // 1. Grab the exact text from the frontend
+        const textToSave = req.body.comment || req.body.rejectionReason || "";
 
-        if (status === 'Rejected' && rejectionReason) {
-            leave.body += `${statusUpdate}\nReason: ${rejectionReason}`;
-        } else {
-            leave.body += statusUpdate;
-        }
+        // 2. Determine the clean action word for the UI
+        let actionWord = newStatus;
+        if (newStatus === 'Awaiting Principal Approval') actionWord = 'Approved';
+        if (newStatus === 'Rejected by HOD') actionWord = 'Rejected';
+        if (newStatus === 'Rejected by Principal') actionWord = 'Rejected';
+
+        // 3. Save ONLY to the comments array. (We no longer modify leave.body!)
+        if (!leave.comments) leave.comments = [];
+        leave.comments.push({
+            role: user.accountType,
+            name: `${user.firstName} ${user.lastName}`,
+            action: actionWord,
+            commentText: textToSave.trim(),
+            timestamp: new Date()
+        });
 
         await leave.save();
+        
+
         // --- NEW: DEDUCT EARNED LEAVE BALANCE DIRECTLY FROM USER ---
         if (newStatus === 'Approved' && leave.category === 'Earned Leave') {
             const requestedDays = moment(leave.endDate).diff(moment(leave.startDate), 'days') + 1;
