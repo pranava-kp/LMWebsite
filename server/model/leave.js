@@ -8,7 +8,7 @@ const leaveSchema = new mongoose.Schema({
     },
     category: {
         type: String,
-        // enum: ["Emergency Leave", "Casual Leave", "Other"],
+        enum: ["Casual Leave", "Earned Leave", "Maternity Leave", "Restricted Holiday"],
         required: true,
     },
     subject: {
@@ -26,7 +26,8 @@ const leaveSchema = new mongoose.Schema({
             "Awaiting Principal Approval",
             "Approved",
             "Rejected by HOD",
-            "Rejected by Principal"
+            "Rejected by Principal",
+            
         ],
         default: "Awaiting HOD Approval",
     },
@@ -54,6 +55,16 @@ const leaveSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.Mixed, 
         required: true,
     },
-});
+    //comments array
+    comments: [
+        {
+            role: { type: String },
+            action: { type: String },
+            commentText: { type: String },
+            timestamp: { type: Date, default: Date.now }
+        }
+    ],
+    
+}, { timestamps: true });
 
 module.exports = mongoose.model("Leave", leaveSchema);

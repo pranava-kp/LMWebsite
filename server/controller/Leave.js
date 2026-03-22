@@ -75,19 +75,69 @@ exports.createLeave = async (req, res) => {
         const absentTeacherName = `${profile.firstName} ${profile.lastName}`;
         const additionalDetails = profile.additionalDetails;
 
-        // 3. Calculate leave days
-        const totalDaysTaken = additionalDetails.leaves.reduce((total, leave) => {
-            const leaveDuration = Math.ceil((leave.endDate - leave.startDate) / (1000 * 60 * 60 * 24)) + 1;
-            return total + leaveDuration;
-        }, 0);
+        // 3. --- NEW RULE VALIDATION ENGINE ---
+        const requestedDays = endDate.diff(startDate, "days") + 1;
 
-        const dateDifferenceInDays = endDate.diff(startDate, "days") + 1;
-        if (dateDifferenceInDays > 12 - totalDaysTaken) {
-            return res.status(400).json({
-                success: false,
-                message: "Leave duration cannot be more than left leaves",
-            });
+        // Fetch user's existing leaves for the current year (excluding rejected ones)
+        const startOfYear = moment().startOf('year').toDate();
+        const endOfYear = moment().endOf('year').toDate();
+        
+        const existingLeaves = await Leave.find({
+            user: user.id,
+            status: { $nin: ['Rejected by HOD', 'Rejected by Principal'] },
+            startDate: { $gte: startOfYear, $lte: endOfYear }
+        });
+
+        // Tally up what they have taken so far
+        let casualThisYear = 0;
+        let casualThisMonth = 0;
+        let restrictedThisYear = 0;
+
+        existingLeaves.forEach(l => {
+            const days = moment(l.endDate).diff(moment(l.startDate), 'days') + 1;
+            
+            if (l.category === 'Casual Leave') {
+                casualThisYear += days;
+                // Check if the leave falls in the current calendar month
+                if (moment(l.startDate).isSame(startDate, 'month')) {
+                    casualThisMonth += days;
+                }
+            }
+            if (l.category === 'Restricted Holiday') {
+                restrictedThisYear += days;
+            }
+        });
+
+        // Apply specific rules based on the category requested
+        if (category === 'Casual Leave') {
+            if (casualThisYear + requestedDays > 12) {
+                return res.status(400).json({ success: false, message: `Yearly limit reached. You only have ${12 - casualThisYear} Casual Leaves left this year.` });
+            }
+            if (casualThisMonth + requestedDays > 3) {
+                return res.status(400).json({ success: false, message: `Monthly limit reached. You can only take 3 Casual Leaves per month.` });
+            }
+        } 
+        else if (category === 'Earned Leave') {
+            // "profile" is actually the User document in your existing code, so this perfectly reads the new wallet!
+            const availableEarned = profile.leaveBalances?.earnedLeave?.balance ?? 10;
+            if (requestedDays > availableEarned) {
+                return res.status(400).json({ success: false, message: `Insufficient balance. You only have ${availableEarned} Earned Leaves available.` });
+            }
+        } 
+        else if (category === 'Restricted Holiday') {
+            if (restrictedThisYear + requestedDays > 2) {
+                return res.status(400).json({ success: false, message: `Limit reached. You can only take 2 Restricted Holidays per year.` });
+            }
+        } 
+        else if (category === 'Maternity Leave') {
+            if (requestedDays > 180) { 
+                return res.status(400).json({ success: false, message: "Maternity Leave cannot exceed 6 months (180 days)." });
+            }
+            body = `[MATERNITY LEAVE - REQUIRES OFFICER APPROVAL]\n` + body;
         }
+
+        const dateDifferenceInDays = requestedDays; 
+        // --- END OF RULE VALIDATION ENGINE ---
 
         // 4. --- FETCH SUBSTITUTE TEACHER DETAILS FROM DB ---
         // Gather all unique Object IDs from the nested payload
@@ -274,7 +324,7 @@ exports.getAllUserLeaves = async (req, res) => {
 
 exports.updateLeaveStatus = async (req, res) => {
     try {
-        const { leaveId, status, rejectionReason } = req.body;
+        const { leaveId, status, comment } = req.body;
         const user = req.user;
 
         // 1. Basic validation
@@ -337,17 +387,43 @@ exports.updateLeaveStatus = async (req, res) => {
         leave.status = newStatus;
         leave.updatedAt = new Date();
 
-        // 5. Append status update audit info
-        const processedBy = `${user.accountType} (${user.firstName} ${user.lastName})`;
-        const statusUpdate = `\n\n[Status Update: ${newStatus} by ${processedBy} on ${new Date().toLocaleString()}]`;
+        
+       
+       // --- CLEAN COMMENT LOGIC ---
+        const textToSave = req.body.comment || req.body.rejectionReason || "";
 
-        if (status === 'Rejected' && rejectionReason) {
-            leave.body += `${statusUpdate}\nReason: ${rejectionReason}`;
-        } else {
-            leave.body += statusUpdate;
+        // We map your specific schema statuses to clean action words for the UI popup
+        let actionWord = newStatus;
+        if (newStatus === 'Awaiting Principal Approval') actionWord = 'Approved';
+        if (newStatus === 'Rejected by HOD' || newStatus === 'Rejected by Principal') actionWord = 'Rejected';
+
+        if (!leave.comments) leave.comments = [];
+        leave.comments.push({
+            role: user.accountType,
+            name: `${user.firstName} ${user.lastName}`,
+            action: actionWord,
+            commentText: textToSave.trim(),
+            timestamp: new Date()
+        });
+
+        //: Tells the database to ONLY check the fields we changed (status & comments)
+        // and ignore missing data from older test records!
+        await leave.save({ validateModifiedOnly: true });
+        
+
+        // --- NEW: DEDUCT EARNED LEAVE BALANCE DIRECTLY FROM USER ---
+        if (newStatus === 'Approved' && leave.category === 'Earned Leave') {
+            const requestedDays = moment(leave.endDate).diff(moment(leave.startDate), 'days') + 1;
+            
+            // Deduct directly from the User model's wallet
+            await User.findByIdAndUpdate(leave.user._id, {
+                $inc: { 
+                    "leaveBalances.earnedLeave.balance": -requestedDays,
+                    "leaveBalances.earnedLeave.takenThisYear": requestedDays
+                }
+            });
         }
-
-        await leave.save();
+        // --- END OF BALANCE DEDUCTION ---
 
         return res.status(200).json({
             success: true,
