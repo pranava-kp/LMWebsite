@@ -26,7 +26,8 @@ const leaveSchema = new mongoose.Schema({
             "Awaiting Principal Approval",
             "Approved",
             "Rejected by HOD",
-            "Rejected by Principal"
+            "Rejected by Principal",
+            
         ],
         default: "Awaiting HOD Approval",
     },

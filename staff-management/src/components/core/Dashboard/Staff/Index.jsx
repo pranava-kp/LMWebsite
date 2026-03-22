@@ -62,11 +62,14 @@ const Staff = () => {
       let filters = {};
       if (loggedInUserAccountType === "HOD") {
         filters.departments = [loggedInUserDepartment];
-        filters.status = "Pending";
+        // FIX: Search for your exact schema string instead of "Pending"
+        filters.status = "Awaiting HOD Approval"; 
       } else if (loggedInUserAccountType === "Principal" || loggedInUserAccountType === "Admin") {
         filters.departments = selectedDepartments.length > 0 ? selectedDepartments : departments;
-        filters.status = "Pending";
+        // FIX: Search for the Principal's exact schema string
+        filters.status = "Awaiting Principal Approval"; 
       }
+
       const response = await getAllUserLeaves(token, filters);
       setLeavesData(response);
       console.log("Fetched leaves data: ", response);
@@ -256,7 +259,7 @@ const Staff = () => {
                     <LeaveCard
                       leave={leave}
                       key={leave._id}
-                      canApproveReject={(loggedInUserAccountType === "HOD" && ["Pending", "Awaiting HOD Approval"].includes(leave.status)) || (loggedInUserAccountType === "Principal" && leave.status === "Awaiting Principal Approval") || loggedInUserAccountType === "Admin"}
+                      canApproveReject={(loggedInUserAccountType === "HOD" && leave.status === "Awaiting HOD Approval") || (loggedInUserAccountType === "Principal" && leave.status === "Awaiting Principal Approval") || loggedInUserAccountType === "Admin"}
                       onProcessLeave={handleProcessLeave}
                       onViewDetails={handleViewLeaveDetails}
                       isProcessing={isProcessingLeave} // Pass processing state
@@ -274,7 +277,7 @@ const Staff = () => {
                     <LeaveCard
                       leave={leave}
                       key={leave._id}
-                      canApproveReject={(loggedInUserAccountType === "HOD" && ["Pending", "Awaiting HOD Approval"].includes(leave.status)) || (loggedInUserAccountType === "Principal" && leave.status === "Awaiting Principal Approval") || loggedInUserAccountType === "Admin"}
+                      canApproveReject={(loggedInUserAccountType === "HOD" && leave.status === "Awaiting HOD Approval") || (loggedInUserAccountType === "Principal" && leave.status === "Awaiting Principal Approval") || loggedInUserAccountType === "Admin"}
                       onProcessLeave={handleProcessLeave}
                       onViewDetails={handleViewLeaveDetails}
                       isProcessing={isProcessingLeave}
@@ -295,7 +298,7 @@ const Staff = () => {
                   <LeaveCard
                     leave={leave}
                     key={leave._id}
-                    canApproveReject={(loggedInUserAccountType === "HOD" && ["Pending", "Awaiting HOD Approval"].includes(leave.status)) || (loggedInUserAccountType === "Principal" && leave.status === "Awaiting Principal Approval") || loggedInUserAccountType === "Admin"}
+                    canApproveReject={(loggedInUserAccountType === "HOD" && leave.status === "Awaiting HOD Approval") || (loggedInUserAccountType === "Principal" && leave.status === "Awaiting Principal Approval") || loggedInUserAccountType === "Admin"}
                     onProcessLeave={handleProcessLeave}
                     onViewDetails={handleViewLeaveDetails}
                     isProcessing={isProcessingLeave}

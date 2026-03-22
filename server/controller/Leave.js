@@ -390,16 +390,13 @@ exports.updateLeaveStatus = async (req, res) => {
         
        
        // --- CLEAN COMMENT LOGIC ---
-        // 1. Grab the exact text from the frontend
         const textToSave = req.body.comment || req.body.rejectionReason || "";
 
-        // 2. Determine the clean action word for the UI
+        // We map your specific schema statuses to clean action words for the UI popup
         let actionWord = newStatus;
         if (newStatus === 'Awaiting Principal Approval') actionWord = 'Approved';
-        if (newStatus === 'Rejected by HOD') actionWord = 'Rejected';
-        if (newStatus === 'Rejected by Principal') actionWord = 'Rejected';
+        if (newStatus === 'Rejected by HOD' || newStatus === 'Rejected by Principal') actionWord = 'Rejected';
 
-        // 3. Save ONLY to the comments array. (We no longer modify leave.body!)
         if (!leave.comments) leave.comments = [];
         leave.comments.push({
             role: user.accountType,
@@ -409,7 +406,9 @@ exports.updateLeaveStatus = async (req, res) => {
             timestamp: new Date()
         });
 
-        await leave.save();
+        //: Tells the database to ONLY check the fields we changed (status & comments)
+        // and ignore missing data from older test records!
+        await leave.save({ validateModifiedOnly: true });
         
 
         // --- NEW: DEDUCT EARNED LEAVE BALANCE DIRECTLY FROM USER ---
