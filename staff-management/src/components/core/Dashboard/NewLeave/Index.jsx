@@ -35,6 +35,23 @@ const NewLeave = () => {
         return yesterday;
     };
 
+    const isNotSunday = (date) => {
+        return date.getDay() !== 0;
+    };
+
+    const getMaxEndDate = (start) => {
+        if (!start) return null;
+        let count = 0;
+        let current = new Date(start);
+        while (count < 3) {
+            current.setDate(current.getDate() + 1);
+            if (current.getDay() !== 0) {
+                count++;
+            }
+        }
+        return current;
+    };
+
     const formatForApi = (dateObj) => {
         if (!dateObj) return "";
         const year = dateObj.getFullYear();
@@ -205,7 +222,7 @@ const NewLeave = () => {
         try {
             // 1. Format substituteTeachers exactly as the backend expects
             const formattedSubstituteTeachers = {};
-            
+
             Object.keys(substituteTeachers).forEach((dateStr) => {
                 const dayData = substituteTeachers[dateStr];
                 if (dayData.hasClass === "yes") {
@@ -227,7 +244,7 @@ const NewLeave = () => {
 
             // 3. Append the file if one exists
             if (attachments.length > 0) {
-                formDataToSend.append("supportDocument", attachments[0]); 
+                formDataToSend.append("supportDocument", attachments[0]);
             }
 
             // 4. Dispatch the completely assembled form data
@@ -284,6 +301,7 @@ const NewLeave = () => {
                             placeholder="Enter subject"
                             className="w-full border rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-300 outline-none"
                             required
+                            autoComplete="off"
                         />
                     </div>
 
@@ -317,7 +335,8 @@ const NewLeave = () => {
                                         ...prev,
                                         startDate: formatForApi(date)
                                     }));
-                                    if (date && (!endDateObj || date > endDateObj)) {
+                                    const maxDate = getMaxEndDate(date);
+                                    if (date && (!endDateObj || date > endDateObj || (maxDate && endDateObj > maxDate))) {
                                         setEndDateObj(date);
                                         setFormData((prev) => ({
                                             ...prev,
@@ -328,6 +347,7 @@ const NewLeave = () => {
                                 dateFormat="dd/MM/yyyy"
                                 placeholderText="dd/mm/yyyy"
                                 minDate={getYesterday()}
+                                filterDate={isNotSunday}
                                 className="w-full border rounded-xl px-3 py-2"
                                 required
                             />
@@ -349,6 +369,8 @@ const NewLeave = () => {
                                 dateFormat="dd/MM/yyyy"
                                 placeholderText="dd/mm/yyyy"
                                 minDate={startDateObj || getYesterday()}
+                                maxDate={startDateObj ? getMaxEndDate(startDateObj) : null}
+                                filterDate={isNotSunday}
                                 className="w-full border rounded-xl px-3 py-2"
                                 required
                             />
@@ -365,9 +387,11 @@ const NewLeave = () => {
                                 className="w-full border rounded-xl px-3 py-2"
                                 required
                             >
-                                <option value="">Select Leave</option>
-                                <option value="Emergency Leave">Emergency Leave</option>
+                                <option value="" disabled hidden>Select Leave</option>
                                 <option value="Casual Leave">Casual Leave</option>
+                                <option value="Earned Leave">Earned Leave</option>
+                                <option value="Maternity Leave">Maternity Leave</option>
+                                <option value="Restricted Holiday">Restricted Holiday</option>
                                 <option value="Others">Others</option>
                             </select>
 
@@ -501,7 +525,7 @@ const NewLeave = () => {
                             <div className="text-blue-500 text-4xl">⬆</div>
                             <p className="text-blue-600 font-semibold">Click to select file <span className="text-gray-500 font-normal"> or drag and drop</span></p>
                             {/* Assumes backend expects max 1 file, based on the cURL */}
-                            <input type="file" onChange={handleFileInput} className="hidden" /> 
+                            <input type="file" onChange={handleFileInput} className="hidden" />
                         </label>
                         <ul className="mt-2 space-y-2">
                             {attachments.map((file, idx) => (
@@ -517,11 +541,10 @@ const NewLeave = () => {
                     <div className="flex justify-center pt-6">
                         <button
                             type="submit"
-                            className={`px-8 py-3 rounded-xl text-white font-semibold ${
-                                !isFormValid() || loading
+                            className={`px-8 py-3 rounded-xl text-white font-semibold ${!isFormValid() || loading
                                     ? "bg-blue-400 cursor-not-allowed"
                                     : "bg-blue-600 hover:bg-blue-700"
-                            }`}
+                                }`}
                             disabled={!isFormValid() || loading}
                         >
                             {loading ? "Submitting..." : "Submit"}
