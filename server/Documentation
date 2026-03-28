@@ -168,4 +168,4 @@ curl -X POST "http://localhost:2000/api/v1/update-leave-status" -H "Authorizatio
 # 4. Fetching remaining leaves balance
 # This fetches the user's current leave balances for all leave types.
 curl -X GET "http://localhost:2000/api/v1/get-remaining-leaves" \
--H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY4N2Y1N2I1MWQwZTU4MDVlMzFhYjUyMCIsImVtYWlsIjoicHJhbmF2YWtwMjAwNCtDU0VTdGFmZjFAZ21haWwuY29tIiwiYWNjb3VudFR5cGUiOiJTdGFmZiIsImRlcGFydG1lbnQiOiJDU0UiLCJpYXQiOjE3NzQ2OTUxNDMsImV4cCI6MTc3NTI5OTk0M30.n-blB55CyT8dI4XxxTcjapKvGp43ugjqw79PvixZEr0"
+-H "Authorization: Bearer TOKEN"
