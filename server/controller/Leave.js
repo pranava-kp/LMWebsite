@@ -7,6 +7,20 @@ const mailSender = require('../mail/sender');
 const { becameSubstituteTeacher } = require("../mail/templates/becameSubstituteTeacher");
 const { uploadFileToCloudinary } = require("../utils/fileUploader");
 
+const getWorkingDays = (startDate, endDate) => {
+    let count = 0;
+    let current = moment(startDate).startOf('day');
+    const end = moment(endDate).startOf('day');
+    
+    while (current.isSameOrBefore(end)) {
+        if (current.day() !== 0) { // 0 is Sunday
+            count++;
+        }
+        current.add(1, 'days');
+    }
+    return count;
+};
+
 exports.createLeave = async (req, res) => {
     try {
         let { subject, body, category, substituteTeachers } = req.body;
@@ -76,7 +90,7 @@ exports.createLeave = async (req, res) => {
         const additionalDetails = profile.additionalDetails;
 
         // 3. --- NEW RULE VALIDATION ENGINE ---
-        const requestedDays = endDate.diff(startDate, "days") + 1;
+        const requestedDays = getWorkingDays(startDate, endDate);
 
         // Fetch user's existing leaves for the current year (excluding rejected ones)
         const startOfYear = moment().startOf('year').toDate();
@@ -94,7 +108,7 @@ exports.createLeave = async (req, res) => {
         let restrictedThisYear = 0;
 
         existingLeaves.forEach(l => {
-            const days = moment(l.endDate).diff(moment(l.startDate), 'days') + 1;
+            const days = getWorkingDays(moment(l.startDate), moment(l.endDate));
             
             if (l.category === 'Casual Leave') {
                 casualThisYear += days;
@@ -293,7 +307,7 @@ exports.getAllUserLeaves = async (req, res) => {
         }).sort({ createdAt: -1 }); // Newest leaves first
 
         const totalLeavesTaken = leaves.reduce((total, leave) => {
-            const leaveDuration = Math.ceil((leave.endDate - leave.startDate) / (1000 * 60 * 60 * 24)) + 1;
+            const leaveDuration = getWorkingDays(moment(leave.startDate), moment(leave.endDate));
             return total + leaveDuration;
         }, 0);
 
@@ -413,7 +427,7 @@ exports.updateLeaveStatus = async (req, res) => {
 
         // --- NEW: DEDUCT EARNED LEAVE BALANCE DIRECTLY FROM USER ---
         if (newStatus === 'Approved' && leave.category === 'Earned Leave') {
-            const requestedDays = moment(leave.endDate).diff(moment(leave.startDate), 'days') + 1;
+            const requestedDays = getWorkingDays(moment(leave.startDate), moment(leave.endDate));
             
             // Deduct directly from the User model's wallet
             await User.findByIdAndUpdate(leave.user._id, {
