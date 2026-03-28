@@ -3,7 +3,7 @@ import { setLoading } from "../slices/authSlice";
 import { leaveEndpoints } from "../apis";
 import { apiConnector } from "../apiConnector";
 
-const { CREATE_LEAVE, GET_ALL_USER_LEAVES, GRANT_USER_LEAVE } = leaveEndpoints;
+const { CREATE_LEAVE, GET_ALL_USER_LEAVES, GRANT_USER_LEAVE, GET_REMAINING_LEAVES } = leaveEndpoints;
 
 export function createLeave(formData, token) {
   return async (dispatch) => {
@@ -114,5 +114,22 @@ export async function updateLeaveStatus(token, leaveId, status, incomingText = "
     throw error;
   } finally {
     toast.dismiss(toastId);
+  }
+}
+
+export async function getRemainingLeaves(token) {
+  try {
+    const response = await apiConnector("GET", GET_REMAINING_LEAVES, null, {
+      Authorization: `Bearer ${token.replace(/^"|"$/g, "")}`,
+    });
+
+    if (!response.data.success) {
+      throw new Error(response.data.message || "Failed to fetch remaining leaves.");
+    }
+    return response.data;
+  } catch (error) {
+    console.error("Error in fetching remaining leaves:", error);
+    toast.error(error.response?.data?.message || "Cannot fetch remaining leaves");
+    throw error;
   }
 }

@@ -20,7 +20,8 @@ const {
     updateOwnProfile,
     adminUpdateProfile,
     deleteProfile,
-    getProfileByEmail
+    getProfileByEmail,
+    getRemainingLeaves
 } = require("../controller/Profile");
 const { addStaff } = require("../controller/addStaff");
 
@@ -50,6 +51,8 @@ router.post("/update-leave-status",
     allowRoles(["HOD", "Principal"]),
     updateLeaveStatus
 );
+
+router.get("/get-remaining-leaves", auth, getRemainingLeaves);
 
 // USER ROUTES
 router.get("/profile", auth, getMyProfile);
