@@ -23,6 +23,7 @@ export const leaveEndpoints = {
     GET_ALL_USER_LEAVES: BASE_URL + "/get-all-leaves",
     GRANT_USER_LEAVE:BASE_URL+"/update-leave-status",
     GET_REMAINING_LEAVES: BASE_URL + "/get-remaining-leaves",
+    EDIT_LEAVE: BASE_URL + "/edit-leave", // Make sure this matches your router!
 }
 
 export const userEndpoints = {

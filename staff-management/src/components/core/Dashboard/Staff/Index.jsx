@@ -9,14 +9,17 @@ import { toast } from "react-hot-toast";
 import { updateLeaveStatus } from "../../../../services/operations/leaveAPI";
 import LeaveDetailsModal from "../../../common/LeaveDetailsModal"
 import ConfirmationModal from "../../../common/ConfirmationModal";
+import { useNavigate } from "react-router-dom";
 
 const Staff = () => {
   const { token } = useSelector((state) => state.auth);
+  const navigate = useNavigate();
   const [leavesData, setLeavesData] = useState(null);
   const [loading, setLoading] = useState(true); 
 
   const [loggedInUserAccountType, setLoggedInUserAccountType] = useState(null);
   const [loggedInUserDepartment, setLoggedInUserDepartment] = useState(null);
+  const [loggedInUserId, setLoggedInUserId] = useState(null);
   const [authDataReady, setAuthDataReady] = useState(false);
 
   const departments = useMemo(() => ["CSE", "ISE", "ME", "ECE"], []);
@@ -41,6 +44,7 @@ const Staff = () => {
       if (userPayload) {
         setLoggedInUserAccountType(userPayload.accountType);
         setLoggedInUserDepartment(userPayload.department || null);
+        setLoggedInUserId(userPayload.id);
         setAuthDataReady(true);
       } else {
         setAuthDataReady(false);
@@ -261,14 +265,20 @@ const Staff = () => {
             isOpen={showLeaveDetailsModal}
             onClose={() => setShowLeaveDetailsModal(false)}
             leave={selectedLeaveForDetails}
-            //  Smart visibility! Only shows the box if it is ACTUALLY their turn.
             canApproveReject={
-              (loggedInUserAccountType === "HOD" && ["Pending", "Awaiting HOD Approval"].includes(selectedLeaveForDetails.status)) ||
+              (loggedInUserAccountType === "HOD" && selectedLeaveForDetails.status === "Awaiting HOD Approval") ||
               (loggedInUserAccountType === "Principal" && selectedLeaveForDetails.status === "Awaiting Principal Approval") ||
-              (loggedInUserAccountType === "Admin" && ["Pending", "Awaiting HOD Approval", "Awaiting Principal Approval"].includes(selectedLeaveForDetails.status))
+              (loggedInUserAccountType === "Admin" && ["Awaiting HOD Approval", "Awaiting Principal Approval"].includes(selectedLeaveForDetails.status))
             }
             onProcessLeave={handleProcessLeave}
             isProcessing={isProcessingLeave}
+            
+            //  checks if the leave creater and the leave editor id are the same
+            onEditLeave={
+              (selectedLeaveForDetails.user?._id === loggedInUserId || selectedLeaveForDetails.user === loggedInUserId)
+                ? (leaveData) => navigate('/dashboard/new-leave', { state: { editLeaveData: leaveData } })
+                : null  
+            }
           />
         )}
     </div>

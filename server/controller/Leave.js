@@ -147,7 +147,7 @@ exports.createLeave = async (req, res) => {
             if (requestedDays > 180) { 
                 return res.status(400).json({ success: false, message: "Maternity Leave cannot exceed 6 months (180 days)." });
             }
-            body = `[MATERNITY LEAVE - REQUIRES OFFICER APPROVAL]\n` + body;
+            
         }
 
         const dateDifferenceInDays = requestedDays; 

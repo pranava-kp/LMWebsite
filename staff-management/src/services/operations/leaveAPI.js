@@ -3,7 +3,7 @@ import { setLoading } from "../slices/authSlice";
 import { leaveEndpoints } from "../apis";
 import { apiConnector } from "../apiConnector";
 
-const { CREATE_LEAVE, GET_ALL_USER_LEAVES, GRANT_USER_LEAVE, GET_REMAINING_LEAVES } = leaveEndpoints;
+const { CREATE_LEAVE, GET_ALL_USER_LEAVES, GRANT_USER_LEAVE, GET_REMAINING_LEAVES, EDIT_LEAVE } = leaveEndpoints;
 
 export function createLeave(formData, token) {
   return async (dispatch) => {
@@ -131,5 +131,32 @@ export async function getRemainingLeaves(token) {
     console.error("Error in fetching remaining leaves:", error);
     toast.error(error.response?.data?.message || "Cannot fetch remaining leaves");
     throw error;
+  }
+}
+
+export async function editUserLeave(formData, token) {
+  const toastId = toast.loading("Updating leave...");
+  try {
+    const response = await apiConnector(
+      "POST",
+      EDIT_LEAVE, // <--- CHANGED THIS LINE
+      formData,
+      {
+        Authorization: `Bearer ${token.replace(/^"|"$/g, "")}`,
+      }
+    );
+
+    if (!response.data.success) {
+      throw new Error(response.data.message);
+    }
+
+    toast.success("Leave updated successfully");
+    return response.data;
+  } catch (error) {
+    console.error("Error editing leave:", error);
+    toast.error(error.response?.data?.message || "Failed to update leave");
+    return { success: false };
+  } finally {
+    toast.dismiss(toastId);
   }
 }

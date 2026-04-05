@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import ConfirmationModal from "./ConfirmationModal";
 
-const LeaveDetailsModal = ({ isOpen, onClose, leave, canApproveReject, onProcessLeave, isProcessing }) => {
+// FIX: Added 'onEditLeave' to the props list!
+const LeaveDetailsModal = ({ isOpen, onClose, leave, canApproveReject, onProcessLeave, isProcessing, onEditLeave }) => {
   const [comment, setComment] = useState("");
   const [showRejectionConfirmation, setShowRejectionConfirmation] = useState(false);
 
@@ -31,11 +32,7 @@ const LeaveDetailsModal = ({ isOpen, onClose, leave, canApproveReject, onProcess
       <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold text-gray-800">Leave Details</h2>
-          <button
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-700"
-            disabled={isProcessing}
-          >
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-700" disabled={isProcessing}>
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -49,7 +46,6 @@ const LeaveDetailsModal = ({ isOpen, onClose, leave, canApproveReject, onProcess
           )}
           <p>
             <strong>Status:</strong>{" "}
-            {/* Added your HOD/Principal statuses to the Yellow text color! */}
             <span className={`font-bold ${
               ["Pending", "Awaiting HOD Approval", "Awaiting Principal Approval"].includes(leave.status) ? "text-yellow-600" :
               leave.status === "Approved" ? "text-green-600" : "text-red-600"
@@ -62,7 +58,7 @@ const LeaveDetailsModal = ({ isOpen, onClose, leave, canApproveReject, onProcess
           <p><strong>To:</strong> {new Date(leave.endDate).toLocaleDateString('en-GB')}</p>
           <p><strong>Description:</strong> {leave.body}</p>
 
-          {/* --- NEW: COMMENTS AUDIT TRAIL (100% Crash Proof) --- */}
+          {/* COMMENTS AUDIT TRAIL */}
           {leave?.comments && Array.isArray(leave.comments) && leave.comments.length > 0 && (
             <div className="mt-4 pt-4 border-t border-gray-200">
               <h3 className="font-semibold text-gray-800 mb-2">Comments:</h3>
@@ -71,19 +67,12 @@ const LeaveDetailsModal = ({ isOpen, onClose, leave, canApproveReject, onProcess
                   const actionColor = c.action === 'Approved' ? 'text-green-600' : 'text-red-600';
                   return (
                     <div key={index} className="bg-white p-3 rounded-md text-sm border border-gray-100 shadow-sm">
-                      {/* 1. Role and Status */}
                       <p className="text-gray-800 m-0 mb-1">
                         <strong>{c.role}:</strong> <span className={`font-semibold ${actionColor}`}>{c.action}</span>
                       </p>
-                      
-                      {/* 2. The Comment Text (Normal text, no italics) */}
                       {c.commentText && c.commentText.trim() !== "" && (
-                        <p className="text-gray-800 m-0 mb-1">
-                          "{c.commentText}"
-                        </p>
+                        <p className="text-gray-800 m-0 mb-1">"{c.commentText}"</p>
                       )}
-
-                      {/* 3. The Timestamp */}
                       <p className="text-xs text-gray-400 m-0">
                         On {new Date(c.timestamp).toLocaleDateString('en-GB')} at {new Date(c.timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
                       </p>
@@ -95,7 +84,20 @@ const LeaveDetailsModal = ({ isOpen, onClose, leave, canApproveReject, onProcess
           )}
         </div>
 
-        {/* --- NEW: COMMENT INPUT BOX --- */}
+        {/* --- NEW: EDIT BUTTON FOR STAFF ONLY --- */}
+        {!canApproveReject && leave.status === "Awaiting HOD Approval" && onEditLeave && (
+          <div className="mt-5 border-t border-gray-200 pt-4 flex justify-end">
+            <button
+              onClick={() => onEditLeave(leave)}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors w-full font-semibold"
+              disabled={isProcessing}
+            >
+              Edit Leave Request
+            </button>
+          </div>
+        )}
+
+        {/* APPROVE/REJECT BUTTONS FOR HOD/PRINCIPAL */}
         {["Pending", "Awaiting HOD Approval", "Awaiting Principal Approval"].includes(leave.status) && canApproveReject && (
           <div className="mt-5 border-t border-gray-200 pt-4">
             <label className="block text-sm font-bold text-gray-700 mb-2">
