@@ -1,25 +1,62 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { useSelector } from "react-redux";
 import ConfirmationModal from "./ConfirmationModal";
 
-// FIX: Added 'onEditLeave' to the props list!
 const LeaveDetailsModal = ({ isOpen, onClose, leave, canApproveReject, onProcessLeave, isProcessing, onEditLeave }) => {
   const [comment, setComment] = useState("");
   const [showRejectionConfirmation, setShowRejectionConfirmation] = useState(false);
+  const [staffList, setStaffList] = useState([]);
+  const { token } = useSelector((state) => state.auth);
+
+  useEffect(() => {
+    const fetchStaff = async () => {
+      try {
+        const response = await fetch(process.env.REACT_APP_BASE_URL + "/getuserdept" || "http://localhost:2000/api/v1/getuserdept", {
+          method: "GET",
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const responseData = await response.json();
+        if (responseData?.success && responseData?.data?.users) {
+          setStaffList(responseData.data.users);
+        }
+      } catch (error) {
+        console.error("Failed to fetch staff list:", error);
+      }
+    };
+
+    if (isOpen && token && leave?.substituteTeachers) {
+      fetchStaff();
+    }
+  }, [isOpen, token, leave]);
+
+  const getStaffName = (id) => {
+    const staff = staffList.find(s => s._id === id);
+    if (staff) {
+      const dept = staff.department?.departmentName || staff.department || "No Dept";
+      return `${staff.firstName} ${staff.lastName} (${dept})`;
+    }
+    return "Loading teacher...";
+  };
+
+  // --- FIX 2: Safely parse the 108-character text string back into a real object! ---
+  let parsedSubs = {};
+  try {
+    parsedSubs = typeof leave?.substituteTeachers === "string" 
+      ? JSON.parse(leave.substituteTeachers) 
+      : (leave?.substituteTeachers || {});
+  } catch (error) {
+    parsedSubs = {};
+  }
 
   if (!isOpen || !leave) return null;
 
-  const handleRejectClick = () => {
-    setShowRejectionConfirmation(true);
-  };
+  const handleRejectClick = () => setShowRejectionConfirmation(true);
+  const handleCancelRejectConfirmation = () => setShowRejectionConfirmation(false);
 
   const handleConfirmReject = () => {
     onProcessLeave(leave, "reject", comment || "", true); 
     setShowRejectionConfirmation(false);
     setComment("");
-  };
-
-  const handleCancelRejectConfirmation = () => {
-    setShowRejectionConfirmation(false);
   };
 
   const handleApproveClick = () => {
@@ -28,8 +65,9 @@ const LeaveDetailsModal = ({ isOpen, onClose, leave, canApproveReject, onProcess
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      {/* We keep your flexible width, but ensure it doesn't break the screen */}
+      <div className="bg-white rounded-lg p-6 w-full md:w-fit md:min-w-[450px] max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold text-gray-800">Leave Details</h2>
           <button onClick={onClose} className="text-gray-500 hover:text-gray-700" disabled={isProcessing}>
@@ -56,12 +94,53 @@ const LeaveDetailsModal = ({ isOpen, onClose, leave, canApproveReject, onProcess
           <p><strong>Category:</strong> {leave.category}</p>
           <p><strong>From:</strong> {new Date(leave.startDate).toLocaleDateString('en-GB')}</p>
           <p><strong>To:</strong> {new Date(leave.endDate).toLocaleDateString('en-GB')}</p>
-          <p><strong>Description:</strong> {leave.body}</p>
+          
+          {/* --- FIX 1: Added break-all and whitespace-pre-wrap to chop up massive unbreakable words --- */}
+          <div className="bg-gray-50 p-3 rounded-md border border-gray-100">
+            <p className="font-bold mb-1">Description:</p>
+            <p className="break-all whitespace-pre-wrap text-sm">{leave.body}</p>
+          </div>
+
+          {/* Render the Safe Parsed Object */}
+          {Object.keys(parsedSubs).length > 0 && (
+            <div className="mt-2 pt-4 border-t border-gray-200">
+              <h3 className="font-bold text-gray-800 mb-3 text-sm uppercase tracking-wide">Daily Schedule</h3>
+              <div className="flex flex-col gap-3">
+                {Object.entries(parsedSubs).map(([date, periods]) => (
+                  <div key={date} className="bg-gray-50 rounded-lg overflow-hidden border border-gray-200 shadow-sm">
+                    <div className="bg-blue-50 px-3 py-2 font-bold text-sm text-blue-800 border-b border-gray-200">
+                      {date}
+                    </div>
+                    {Object.keys(periods).length > 0 ? (
+                      <table className="w-full text-left text-sm">
+                        <thead>
+                          <tr className="bg-white border-b border-gray-200 text-gray-500">
+                            <th className="px-3 py-2 font-medium w-1/3">Hour</th>
+                            <th className="px-3 py-2 font-medium">Substitute Teacher</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {Object.entries(periods).map(([hour, staffId]) => (
+                            <tr key={hour} className="border-b border-gray-100 bg-white last:border-0">
+                              <td className="px-3 py-2 font-semibold text-gray-700">{hour}</td>
+                              <td className="px-3 py-2 text-gray-700">{getStaffName(staffId)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <div className="px-3 py-2 text-sm text-gray-500 bg-white">No classes scheduled.</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* COMMENTS AUDIT TRAIL */}
           {leave?.comments && Array.isArray(leave.comments) && leave.comments.length > 0 && (
-            <div className="mt-4 pt-4 border-t border-gray-200">
-              <h3 className="font-semibold text-gray-800 mb-2">Comments:</h3>
+            <div className="mt-2 pt-4 border-t border-gray-200">
+              <h3 className="font-bold text-gray-800 mb-2 text-sm uppercase tracking-wide">Comments:</h3>
               <div className="flex flex-col gap-3">
                 {leave.comments.map((c, index) => {
                   const actionColor = c.action === 'Approved' ? 'text-green-600' : 'text-red-600';
@@ -84,7 +163,7 @@ const LeaveDetailsModal = ({ isOpen, onClose, leave, canApproveReject, onProcess
           )}
         </div>
 
-        {/* --- NEW: EDIT BUTTON FOR STAFF ONLY --- */}
+        {/* EDIT BUTTON FOR STAFF ONLY */}
         {!canApproveReject && leave.status === "Awaiting HOD Approval" && onEditLeave && (
           <div className="mt-5 border-t border-gray-200 pt-4 flex justify-end">
             <button
@@ -97,7 +176,7 @@ const LeaveDetailsModal = ({ isOpen, onClose, leave, canApproveReject, onProcess
           </div>
         )}
 
-        {/* APPROVE/REJECT BUTTONS FOR HOD/PRINCIPAL */}
+        {/* APPROVE/REJECT BUTTONS */}
         {["Pending", "Awaiting HOD Approval", "Awaiting Principal Approval"].includes(leave.status) && canApproveReject && (
           <div className="mt-5 border-t border-gray-200 pt-4">
             <label className="block text-sm font-bold text-gray-700 mb-2">
