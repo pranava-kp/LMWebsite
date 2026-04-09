@@ -15,6 +15,7 @@ const NewLeave = () => {
     const dispatch = useDispatch();
     const navigate = useNavigate();
     const location = useLocation(); // FIX: Catches the router state
+    const [existingDocument, setExistingDocument] = useState(null);
 
     // FIX: State to track if we are editing
     const [editLeaveId, setEditLeaveId] = useState(null);
@@ -95,7 +96,6 @@ const NewLeave = () => {
         if (token) fetchStaff();
     }, [token]);
 
-    // --- NEW: EDIT MODE PRE-FILL LOGIC ---
     useEffect(() => {
         // Wait until staffList is loaded so we can properly map substitute teacher names!
         if (location.state?.editLeaveData && staffList.length > 0 && !editLeaveId) {
@@ -109,10 +109,26 @@ const NewLeave = () => {
                 otherCategory: ["Casual Leave", "Earned Leave", "Maternity Leave", "Restricted Holiday"].includes(data.category) ? "" : data.category,
             });
 
+            // --- FIX: Bulletproof check for the existing document URL! ---
+            const savedDoc = data.documentUrl || data.supportDocument || data.document;
+            if (savedDoc) {
+                setExistingDocument(savedDoc);
+            }
+
             const start = new Date(data.startDate);
             const end = new Date(data.endDate);
             setStartDateObj(start);
             setEndDateObj(end);
+
+            // --- FIX: Safely parse the DB string into a real JSON object! ---
+            let parsedDBSubs = {};
+            try {
+                parsedDBSubs = typeof data.substituteTeachers === "string"
+                    ? JSON.parse(data.substituteTeachers)
+                    : (data.substituteTeachers || {});
+            } catch (error) {
+                parsedDBSubs = {};
+            }
 
             // Back-map substitute teachers from the DB format into the UI Form format
             const mappedSubs = {};
@@ -120,7 +136,8 @@ const NewLeave = () => {
             while (curr <= end) {
                 if (curr.getDay() !== 0) {
                     const dateStr = formatForApi(curr);
-                    const dayDataFromDB = data.substituteTeachers?.[dateStr];
+                    // Use the parsed object instead of the raw data string!
+                    const dayDataFromDB = parsedDBSubs[dateStr]; 
 
                     if (dayDataFromDB && Object.keys(dayDataFromDB).length > 0) {
                         const periods = Object.keys(dayDataFromDB).map(hour => {
@@ -417,7 +434,28 @@ const NewLeave = () => {
                     {/* FILE UPLOAD */}
                     <div className="flex flex-col gap-2 border-t pt-4">
                         <label className="text-sm font-semibold uppercase">Supporting Documents (Optional)</label>
-                        <p className="text-sm text-gray-500">Attach medical certificates or other documents (e.g., PDF, Image)</p>
+                        
+                        {/* ---  Hide the old document banner the moment a NEW file is attached --- */}
+                        {existingDocument && attachments.length === 0 && (
+                            <div className="bg-blue-50 p-4 rounded-xl border border-blue-200 flex justify-between items-center mb-2">
+                                <div>
+                                    <p className="text-sm font-semibold text-blue-800">Current Attached Document:</p>
+                                    <a href={existingDocument} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-600 hover:text-blue-800 font-medium hover:underline flex items-center gap-1 mt-1">
+                                        📄 View Document
+                                    </a>
+                                </div>
+                                <div className="text-xs text-blue-500 bg-white px-3 py-1 rounded-full border border-blue-100 shadow-sm">
+                                    Saved securely
+                                </div>
+                            </div>
+                        )}
+
+                        <p className="text-sm text-gray-500">
+                            {existingDocument 
+                                ? "Upload a new file below ONLY if you want to replace the current document." 
+                                : "Attach medical certificates or other documents (e.g., PDF, Image)"}
+                        </p>
+                        
                         <label className="border-2 border-dashed border-blue-400 rounded-2xl p-10 flex flex-col items-center justify-center gap-3 cursor-pointer hover:bg-blue-50 transition">
                             <div className="text-blue-500 text-4xl">⬆</div>
                             <p className="text-blue-600 font-semibold">Click to select file <span className="text-gray-500 font-normal"> or drag and drop</span></p>

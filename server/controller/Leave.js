@@ -498,7 +498,21 @@ exports.editLeave = async (req, res) => {
         if (subject) leave.subject = subject;
         if (body) leave.body = body;
         if (category) leave.category = category;
-        if (substituteTeachers) leave.substituteTeachers = substituteTeachers;
+        if (substituteTeachers) {
+            // Parse substituteTeachers back to JSON if it comes as a string from FormData
+            if (typeof substituteTeachers === "string") {
+                try {
+                    leave.substituteTeachers = JSON.parse(substituteTeachers);
+                } catch (error) {
+                    return res.status(400).json({
+                        success: false,
+                        message: "Invalid format for substituteTeachers",
+                    });
+                }
+            } else {
+                leave.substituteTeachers = substituteTeachers;
+            }
+        }
 
         // 5. Handle date updates carefully
         if (startDate && endDate) {
@@ -513,6 +527,29 @@ exports.editLeave = async (req, res) => {
             }
             leave.startDate = newStartDate;
             leave.endDate = newEndDate;
+        }
+
+        // 6. --- NEW: CLOUDINARY UPLOAD LOGIC FOR EDIT ---
+        if (req.files && req.files.supportDocument) {
+            const document = req.files.supportDocument;
+            try {
+                const uploadDetails = await uploadFileToCloudinary(
+                    document,
+                    process.env.CLOUDINARY_FOLDER || "leave_documents"
+                );
+                
+                // Overwrite the old database link with the brand new Cloudinary link!
+                leave.documentUrl = uploadDetails.secure_url; 
+                // Updating fallback fields just in case
+                leave.supportDocument = uploadDetails.secure_url; 
+                leave.document = uploadDetails.secure_url; 
+            } catch (uploadError) {
+                console.error("Cloudinary Upload Error during edit:", uploadError);
+                return res.status(500).json({
+                    success: false,
+                    message: "Error uploading new support document to Cloudinary",
+                });
+            }
         }
 
         leave.updatedAt = new Date();

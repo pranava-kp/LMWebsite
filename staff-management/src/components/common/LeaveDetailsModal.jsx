@@ -38,7 +38,6 @@ const LeaveDetailsModal = ({ isOpen, onClose, leave, canApproveReject, onProcess
     return "Loading teacher...";
   };
 
-  // --- FIX 2: Safely parse the 108-character text string back into a real object! ---
   let parsedSubs = {};
   try {
     parsedSubs = typeof leave?.substituteTeachers === "string" 
@@ -66,7 +65,6 @@ const LeaveDetailsModal = ({ isOpen, onClose, leave, canApproveReject, onProcess
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      {/* We keep your flexible width, but ensure it doesn't break the screen */}
       <div className="bg-white rounded-lg p-6 w-full md:w-fit md:min-w-[450px] max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold text-gray-800">Leave Details</h2>
@@ -95,13 +93,25 @@ const LeaveDetailsModal = ({ isOpen, onClose, leave, canApproveReject, onProcess
           <p><strong>From:</strong> {new Date(leave.startDate).toLocaleDateString('en-GB')}</p>
           <p><strong>To:</strong> {new Date(leave.endDate).toLocaleDateString('en-GB')}</p>
           
-          {/* --- FIX 1: Added break-all and whitespace-pre-wrap to chop up massive unbreakable words --- */}
           <div className="bg-gray-50 p-3 rounded-md border border-gray-100">
             <p className="font-bold mb-1">Description:</p>
             <p className="break-all whitespace-pre-wrap text-sm">{leave.body}</p>
+            
+            {/* --- NEW: UNIVERSAL VIEW DOCUMENT BUTTON --- */}
+            {(leave.documentUrl || leave.supportDocument || leave.document) && (
+              <div className="mt-4 pt-3 border-t border-gray-200">
+                <a 
+                  href={leave.documentUrl || leave.supportDocument || leave.document} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-700 font-semibold rounded-md hover:bg-blue-200 transition-colors text-sm w-max"
+                >
+                  📄 View Attached Document
+                </a>
+              </div>
+            )}
           </div>
 
-          {/* Render the Safe Parsed Object */}
           {Object.keys(parsedSubs).length > 0 && (
             <div className="mt-2 pt-4 border-t border-gray-200">
               <h3 className="font-bold text-gray-800 mb-3 text-sm uppercase tracking-wide">Daily Schedule</h3>
